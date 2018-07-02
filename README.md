@@ -30,7 +30,8 @@ install the "gpu" version of PyTorch.<br>
      |  
      |  Methods defined here:
      |  
-     |  __init__(self, depth=7, latent_size=64, learning_rate=0.001, beta_1=0, beta_2=0.99, eps=1e-08, drift=0.001, n_critic=1, device=device(type='cpu'))
+     |  __init__(self, depth=7, latent_size=64, learning_rate=0.001, beta_1=0, beta_2=0.99, eps=1e-08, drift=0.001, 
+                 n_critic=1, device=device(type='cpu'))
      |      constructor for the class
      |      :param depth: depth of the GAN (will be used for each generator and discriminator)
      |      :param latent_size: latent size of the manifold used by the GAN
