@@ -112,5 +112,5 @@ install the "gpu" version of PyTorch.<br>
         
 # #TODO
 1.) Add the conditional PRO_GAN module <br>
-2.) Setup the travis - checker. (I have to figure out some good unit tests too :D lulz!)
-3.) Write an informative README.rst (although it is rarely read)
+2.) Setup the travis - checker. (I have to figure out some good unit tests too :D lulz!) <br>
+3.) Write an informative README.rst (although it is rarely read) <br>
