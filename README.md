@@ -77,7 +77,7 @@ install the "gpu" version of PyTorch.<br>
         # ======================================================================
         # This line creates the PRO-GAN
         # ======================================================================
-        pro_gan = pg.ProGAN(depth=depth, latent_size=latent_size)
+        pro_gan = pg.ProGAN(depth=depth, latent_size=latent_size, device=device)
         # ======================================================================
 
         # train the pro_gan using the cifar-10 data
