@@ -21,47 +21,96 @@ install the "gpu" version of PyTorch.<br>
     import pytorch_pro_gan.PRO_GAN as pg
  
  Use the modules `pg.Generator`, `pg.Discriminator` and
- `pg.ProGAN`.
- 
-    Help on class ProGAN in module pro_gan_pytorch.PRO_GAN:
-    
-    class ProGAN(builtins.object)
-     |  Wrapper around the Generator and the Discriminator
-     |  
-     |  Methods defined here:
-     |  
-     |  __init__(self, depth=7, latent_size=64, learning_rate=0.001, beta_1=0, beta_2=0.99, eps=1e-08, drift=0.001, 
-                 n_critic=1, device=device(type='cpu'))
-     |      constructor for the class
-     |      :param depth: depth of the GAN (will be used for each generator and discriminator)
-     |      :param latent_size: latent size of the manifold used by the GAN
-     |      :param learning_rate: learning rate for Adam
-     |      :param beta_1: beta_1 for Adam
-     |      :param beta_2: beta_2 for Adam
-     |      :param eps: epsilon for Adam
-     |      :param n_critic: number of times to update discriminator
-     |      :param device: device to run the GAN on (GPU / CPU)
-     |  
-     |  optimize_discriminator(self, noise, real_batch, depth, alpha)
-     |      performs one step of weight update on discriminator using the batch of data
-     |      :param noise: input noise of sample generation
-     |      :param real_batch: real samples batch
-     |      :param depth: current depth of optimization
-     |      :param alpha: current alpha for fade-in
-     |      :return: current loss (Wasserstein loss)
-     |  
-     |  optimize_generator(self, noise, depth, alpha)
-     |      performs one step of weight update on generator for the given batch_size
-     |      :param noise: input random noise required for generating samples
-     |      :param depth: depth of the network at which optimization is done
-     |      :param alpha: value of alpha for fade-in effect
-     |      :return: current loss (Wasserstein estimate)
-     |  
-     |  ----------------------------------------------------------------------
-     |  Data descriptors defined here:
-     |  
-     |  __dict__
-     |      dictionary for instance variables (if defined)
-     |  
-     |  __weakref__
-     |      list of weak references to the object (if defined)
+ `pg.ProGAN`. Mostly, you'll only need the ProGAN module.
+
+4.) Example Code for CIFAR-10 dataset:
+
+    import torch as th
+    import torchvision as tv
+    import pro_gan_pytorch.PRO_GAN as pg
+
+    # select the device to be used for training
+    device = th.device("cuda" if th.cuda.is_available() else "cpu")
+    data_path = "cifar-10/"
+
+    def setup_data(batch_size, num_workers, download=False):
+        """
+        setup the CIFAR-10 dataset for training the CNN
+        :param batch_size: batch_size for sgd
+        :param num_workers: num_readers for data reading
+        :param download: Boolean for whether to download the data
+        :return: classes, trainloader, testloader => training and testing data loaders
+        """
+        # data setup:
+        classes = ('plane', 'car', 'bird', 'cat', 'deer',
+                   'dog', 'frog', 'horse', 'ship', 'truck')
+
+        transforms = tv.transforms.ToTensor()
+
+        trainset = tv.datasets.CIFAR10(root=data_path,
+                                       transform=transforms,
+                                       download=download)
+        trainloader = th.utils.data.DataLoader(trainset, batch_size=batch_size,
+                                               shuffle=True,
+                                               num_workers=num_workers)
+
+        testset = tv.datasets.CIFAR10(root=data_path,
+                                      transform=transforms, train=False,
+                                      download=False)
+        testloader = th.utils.data.DataLoader(testset, batch_size=batch_size,
+                                              shuffle=True,
+                                              num_workers=num_workers)
+
+        return classes, trainloader, testloader
+
+
+    if __name__ == '__main__':
+
+        # some parameters:
+        depth = 4
+        num_epochs = 100  # number of epochs per depth (resolution)
+        latent_size = 128
+
+        # get the data. Ignore the test data and their classes
+        _, train_data_loader, _ = setup_data(batch_size=32, num_workers=3, download=True)
+
+        # ======================================================================
+        # This line creates the PRO-GAN
+        # ======================================================================
+        pro_gan = pg.ProGAN(depth=depth, latent_size=latent_size)
+        # ======================================================================
+
+        # train the pro_gan using the cifar-10 data
+        for current_depth in range(depth):
+            print("working on depth:", current_depth)
+
+            # note that the rest of the api indexes depth from 0
+            for epoch in range(1, num_epochs + 1):
+                print("\ncurrent_epoch: ", epoch)
+
+                # calculate the value of aplha for fade-in effect
+                alpha = int(epoch / num_epochs)
+
+                # iterate over the dataset in batches:
+                for i, batch in enumerate(train_data_loader, 1):
+                    images, _ = batch
+                    # generate some random noise:
+                    noise = th.randn(images.shape[0], latent_size)
+
+                    # optimize discriminator:
+                    dis_loss = pro_gan.optimize_discriminator(noise, images, current_depth, alpha)
+
+                    # optimize generator:
+                    gen_loss = pro_gan.optimize_generator(noise, current_depth, alpha)
+
+                    print("Batch: %d  dis_loss: %.3f  gen_loss: %.3f"
+                          % (i, dis_loss, gen_loss))
+
+                print("epoch finished ...")
+
+        print("training complete ...")
+        
+# #TODO
+1.) Add the conditional PRO_GAN module <br>
+2.) Setup the travis - checker. (I have to figure out some good unit tests too :D lulz!)
+3.) Write an informative README.rst (although it is rarely read)
