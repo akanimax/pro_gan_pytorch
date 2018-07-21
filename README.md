@@ -2,7 +2,8 @@
 Package contains implementation of ProGAN. 
 Paper titled "Progressive growing of GANs for improved 
 Quality, Stability, and Variation". <br>
-link -> https://arxiv.org/abs/1710.10196
+link -> https://arxiv.org/abs/1710.10196 <br>
+Trained Examples at -> https://github.com/akanimax/pro_gan_pytorch-examples
 
 # Steps to use:
 1.) Install your appropriate version of PyTorch. 
