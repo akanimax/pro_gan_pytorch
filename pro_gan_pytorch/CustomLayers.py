@@ -94,21 +94,23 @@ class _equalized_deconv2d(th.nn.Module):
 class _equalized_linear(th.nn.Module):
     """ Linear layer using equalized learning rate """
 
-    def __init__(self, c_in, c_out, initializer='kaiming'):
+    def __init__(self, c_in, c_out, initializer='kaiming', bias=True):
         """
         Linear layer from pytorch extended to include equalized learning rate
         :param c_in: number of input channels
         :param c_out: number of output channels
         :param initializer: initializer to be used: one of "kaiming" or "xavier"
+        :param bias: whether to use bias with the linear layer
         """
         super(_equalized_linear, self).__init__()
-        self.linear = th.nn.Linear(c_in, c_out, bias=False)
+        self.linear = th.nn.Linear(c_in, c_out, bias=bias)
         if initializer == 'kaiming':
             th.nn.init.kaiming_normal_(self.linear.weight,
                                        a=th.nn.init.calculate_gain('linear'))
         elif initializer == 'xavier':
             th.nn.init.xavier_normal_(self.linear.weight)
 
+        self.use_bias = bias
         self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
         self.scale = (th.mean(self.linear.weight.data ** 2)) ** 0.5
         self.linear.weight.data.copy_(self.linear.weight.data / self.scale)
@@ -124,7 +126,9 @@ class _equalized_linear(th.nn.Module):
         except RuntimeError:
             dev_scale = self.scale
         x = self.linear(x.mul(dev_scale))
-        return x + self.bias.view(1, -1).expand_as(x)
+        if self.use_bias:
+            return x + self.bias.view(1, -1).expand_as(x)
+        return x
 
 
 # ==========================================================
@@ -156,7 +160,7 @@ class GenInitialBlock(th.nn.Module):
             self.conv_2 = Conv2d(in_channels, in_channels, (3, 3), padding=1, bias=True)
 
         # Pixelwise feature vector normalization operation
-        self.pixNorm = lambda x: local_response_norm(x, 2 * x.shape[1], alpha=2 * x.shape[1],
+        self.pixNorm = lambda x: local_response_norm(x, 2 * x.shape[1], alpha=2,
                                                      beta=0.5, k=1e-8)
 
         # leaky_relu:
@@ -211,7 +215,7 @@ class GenGeneralConvBlock(th.nn.Module):
                                  padding=1, bias=True)
 
         # Pixelwise feature vector normalization operation
-        self.pixNorm = lambda x: local_response_norm(x, 2 * x.shape[1], alpha=2 * x.shape[1],
+        self.pixNorm = lambda x: local_response_norm(x, 2 * x.shape[1], alpha=2,
                                                      beta=0.5, k=1e-8)
 
         # leaky_relu:
@@ -228,6 +232,22 @@ class GenGeneralConvBlock(th.nn.Module):
         y = self.pixNorm(self.lrelu(self.conv_2(y)))
 
         return y
+
+
+class EMA(th.nn.Module):
+    def __init__(self, mu):
+        super(EMA, self).__init__()
+        self.mu = mu
+        self.shadow = {}
+
+    def register(self, name, val):
+        self.shadow[name] = val.clone()
+
+    def forward(self, name, x):
+        assert name in self.shadow
+        new_average = self.mu * x + (1.0 - self.mu) * self.shadow[name]
+        self.shadow[name] = new_average.clone()
+        return new_average
 
 
 class MinibatchStdDev(th.nn.Module):
@@ -317,16 +337,16 @@ class DisFinalBlock(th.nn.Module):
         # declare the required modules for forward pass
         self.batch_discriminator = MinibatchStdDev()
         if use_eql:
-            self.conv_1 = _equalized_conv2d(in_channels + 1, in_channels, (3, 3), pad=1)
-            self.conv_2 = _equalized_conv2d(in_channels, in_channels, (4, 4))
+            self.conv_1 = _equalized_conv2d(in_channels + 1, in_channels, (3, 3), pad=1, bias=True)
+            self.conv_2 = _equalized_conv2d(in_channels, in_channels, (4, 4), bias=True)
             # final conv layer emulates a fully connected layer
-            self.conv_3 = _equalized_conv2d(in_channels, 1, (1, 1))
+            self.conv_3 = _equalized_conv2d(in_channels, 1, (1, 1), bias=True)
         else:
             from torch.nn import Conv2d
-            self.conv_1 = Conv2d(in_channels + 1, in_channels, (3, 3), padding=1)
-            self.conv_2 = Conv2d(in_channels, in_channels, (4, 4))
+            self.conv_1 = Conv2d(in_channels + 1, in_channels, (3, 3), padding=1, bias=True)
+            self.conv_2 = Conv2d(in_channels, in_channels, (4, 4), bias=True)
             # final conv layer emulates a fully connected layer
-            self.conv_3 = Conv2d(in_channels, 1, (1, 1))
+            self.conv_3 = Conv2d(in_channels, 1, (1, 1), bias=True)
 
         # leaky_relu:
         self.lrelu = LeakyReLU(0.2)
@@ -345,7 +365,79 @@ class DisFinalBlock(th.nn.Module):
         y = self.lrelu(self.conv_2(y))
 
         # fully connected layer
-        y = self.lrelu(self.conv_3(y))  # final fully connected layer
+        y = self.conv_3(y)  # This layer has linear activation
+
+        # flatten the output raw discriminator scores
+        return y.view(-1)
+
+
+class ConDisFinalBlock(th.nn.Module):
+    """ Final block for the Conditional Discriminator """
+
+    def __init__(self, in_channels, in_latent_size, out_latent_size, use_eql):
+        """
+        constructor of the class
+        :param in_channels: number of input channels
+        :param in_latent_size: size of the input latent vectors
+        :param out_latent_size: size of the transformed latent vectors
+        :param use_eql: whether to use equalized learning rate
+        """
+        from torch.nn import LeakyReLU
+
+        super(ConDisFinalBlock, self).__init__()
+
+        # declare the required modules for forward pass
+        self.batch_discriminator = MinibatchStdDev()
+        if use_eql:
+            self.compressor = _equalized_linear(c_in=in_latent_size, c_out=out_latent_size)
+            self.conv_1 = _equalized_conv2d(in_channels + 1, in_channels, (3, 3), pad=1, bias=True)
+            self.conv_2 = _equalized_conv2d(in_channels + out_latent_size,
+                                            in_channels, (1, 1), bias=True)
+            self.conv_3 = _equalized_conv2d(in_channels, in_channels, (4, 4), bias=True)
+            # final conv layer emulates a fully connected layer
+            self.conv_4 = _equalized_conv2d(in_channels, 1, (1, 1), bias=True)
+        else:
+            from torch.nn import Conv2d, Linear
+            self.compressor = Linear(in_features=in_latent_size,
+                                     out_features=out_latent_size, bias=True)
+            self.conv_1 = Conv2d(in_channels + 1, in_channels, (3, 3), padding=1, bias=True)
+            self.conv_2 = Conv2d(in_channels + out_latent_size,
+                                 in_channels, (1, 1), bias=True)
+            self.conv_3 = Conv2d(in_channels, in_channels, (4, 4), bias=True)
+            # final conv layer emulates a fully connected layer
+            self.conv_4 = Conv2d(in_channels, 1, (1, 1), bias=True)
+
+        # leaky_relu:
+        self.lrelu = LeakyReLU(0.2)
+
+    def forward(self, x, latent_vector):
+        """
+        forward pass of the FinalBlock
+        :param x: input
+        :param latent_vector: latent vector for conditional discrimination
+        :return: y => output
+        """
+        # minibatch_std_dev layer
+        y = self.batch_discriminator(x)
+
+        # define the computations
+        y = self.lrelu(self.conv_1(y))
+        # apply the latent vector here:
+        compressed_latent_vector = self.compressor(latent_vector)
+        cat = th.unsqueeze(th.unsqueeze(compressed_latent_vector, -1), -1)
+        cat = cat.expand(
+            compressed_latent_vector.shape[0],
+            compressed_latent_vector.shape[1],
+            y.shape[2],
+            y.shape[3]
+        )
+        y = th.cat((y, cat), dim=1)
+
+        y = self.lrelu(self.conv_2(y))
+        y = self.lrelu(self.conv_3(y))
+
+        # fully connected layer
+        y = self.conv_4(y)  # This layer has linear activation
 
         # flatten the output raw discriminator scores
         return y.view(-1)
@@ -366,12 +458,12 @@ class DisGeneralConvBlock(th.nn.Module):
         super(DisGeneralConvBlock, self).__init__()
 
         if use_eql:
-            self.conv_1 = _equalized_conv2d(in_channels, in_channels, (3, 3), pad=1)
-            self.conv_2 = _equalized_conv2d(in_channels, out_channels, (3, 3), pad=1)
+            self.conv_1 = _equalized_conv2d(in_channels, in_channels, (3, 3), pad=1, bias=True)
+            self.conv_2 = _equalized_conv2d(in_channels, out_channels, (3, 3), pad=1, bias=True)
         else:
             from torch.nn import Conv2d
-            self.conv_1 = Conv2d(in_channels, in_channels, (3, 3), padding=1)
-            self.conv_2 = Conv2d(in_channels, out_channels, (3, 3), padding=1)
+            self.conv_1 = Conv2d(in_channels, in_channels, (3, 3), padding=1, bias=True)
+            self.conv_2 = Conv2d(in_channels, out_channels, (3, 3), padding=1, bias=True)
 
         self.downSampler = AvgPool2d(2)
 
