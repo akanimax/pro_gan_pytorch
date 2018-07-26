@@ -95,8 +95,9 @@ install the "gpu" version of PyTorch.<br>
                 # iterate over the dataset in batches:
                 for i, batch in enumerate(train_data_loader, 1):
                     images, _ = batch
+                    images = images.to(device)
                     # generate some random noise:
-                    noise = th.randn(images.shape[0], latent_size)
+                    noise = th.randn(images.shape[0], latent_size).to(device)
 
                     # optimize discriminator:
                     dis_loss = pro_gan.optimize_discriminator(noise, images, current_depth, alpha)
