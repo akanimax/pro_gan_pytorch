@@ -113,6 +113,6 @@ install the "gpu" version of PyTorch.<br>
         print("training complete ...")
         
 # #TODO
-1.) Add the conditional PRO_GAN module <br>
+1.) ~~Add the conditional PRO_GAN module~~ (added in commit [ee7cf00b5f3e747c61e293a88f3e2f656117fcc2](https://github.com/akanimax/pro_gan_pytorch/commit/ee7cf00b5f3e747c61e293a88f3e2f656117fcc2))<br>
 2.) Setup the travis - checker. (I have to figure out some good unit tests too :D lulz!) <br>
 3.) Write an informative README.rst (although it is rarely read) <br>
