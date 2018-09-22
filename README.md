@@ -90,7 +90,8 @@ install the "gpu" version of PyTorch.<br>
                 print("\ncurrent_epoch: ", epoch)
 
                 # calculate the value of aplha for fade-in effect
-                alpha = int(epoch / num_epochs)
+                alpha = epoch / num_epochs
+                print("value of alpha:", alpha)
 
                 # iterate over the dataset in batches:
                 for i, batch in enumerate(train_data_loader, 1):
