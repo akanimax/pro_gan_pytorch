@@ -2,7 +2,8 @@
 Package contains implementation of ProGAN. 
 Paper titled "Progressive growing of GANs for improved 
 Quality, Stability, and Variation". <br>
-link -> https://arxiv.org/abs/1710.10196
+link -> https://arxiv.org/abs/1710.10196 <br>
+Trained Examples at -> https://github.com/akanimax/pro_gan_pytorch-examples
 
 # Steps to use:
 1.) Install your appropriate version of PyTorch. 
@@ -89,13 +90,15 @@ install the "gpu" version of PyTorch.<br>
                 print("\ncurrent_epoch: ", epoch)
 
                 # calculate the value of aplha for fade-in effect
-                alpha = int(epoch / num_epochs)
+                alpha = epoch / num_epochs
+                print("value of alpha:", alpha)
 
                 # iterate over the dataset in batches:
                 for i, batch in enumerate(train_data_loader, 1):
                     images, _ = batch
+                    images = images.to(device)
                     # generate some random noise:
-                    noise = th.randn(images.shape[0], latent_size)
+                    noise = th.randn(images.shape[0], latent_size).to(device)
 
                     # optimize discriminator:
                     dis_loss = pro_gan.optimize_discriminator(noise, images, current_depth, alpha)
@@ -111,6 +114,6 @@ install the "gpu" version of PyTorch.<br>
         print("training complete ...")
         
 # #TODO
-1.) Add the conditional PRO_GAN module <br>
+1.) ~~Add the conditional PRO_GAN module~~ (added in commit [ee7cf00b5f3e747c61e293a88f3e2f656117fcc2](https://github.com/akanimax/pro_gan_pytorch/commit/ee7cf00b5f3e747c61e293a88f3e2f656117fcc2))<br>
 2.) Setup the travis - checker. (I have to figure out some good unit tests too :D lulz!) <br>
 3.) Write an informative README.rst (although it is rarely read) <br>
