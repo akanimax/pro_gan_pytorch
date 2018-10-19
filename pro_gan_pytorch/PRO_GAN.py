@@ -316,10 +316,16 @@ class ProGAN:
         """
 
         from torch.optim import Adam
+        from torch.nn import DataParallel
 
         # Create the Generator and the Discriminator
         self.gen = Generator(depth, latent_size, use_eql=use_eql).to(device)
         self.dis = Discriminator(depth, latent_size, use_eql=use_eql).to(device)
+
+        # if code is to be run on GPU, we can use DataParallel:
+        if device == th.device("cuda"):
+            self.gen = DataParallel(self.gen)
+            self.dis = DataParallel(self.dis)
 
         # state of the object
         self.latent_size = latent_size

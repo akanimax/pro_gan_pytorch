@@ -234,7 +234,14 @@ class GenGeneralConvBlock(th.nn.Module):
         return y
 
 
-class EMA(th.nn.Module):
+# No need to calculate gradients for this
+class EMA:
+    """
+        Exponential moving average functionality
+        Note that this is not a module.
+        It only operates over the Parameters of Network
+    """
+
     def __init__(self, mu):
         super(EMA, self).__init__()
         self.mu = mu
@@ -243,9 +250,9 @@ class EMA(th.nn.Module):
     def register(self, name, val):
         self.shadow[name] = val.clone()
 
-    def forward(self, name, x):
+    def __call__(self, name, x):
         assert name in self.shadow
-        new_average = self.mu * x + (1.0 - self.mu) * self.shadow[name]
+        new_average = self.mu * x + (1 - self.mu) * self.shadow[name]
         self.shadow[name] = new_average.clone()
         return new_average
 
@@ -265,7 +272,7 @@ class MinibatchStdDev(th.nn.Module):
             self.n = int(self.averaging[5:])
         else:
             assert self.averaging in \
-                   ['all', 'flat', 'spatial', 'none', 'gpool'], \
+                   ['all', 'flat', 'spatial', 'none', 'gpool'],\
                    'Invalid averaging mode %s' % self.averaging
 
         # calculate the std_dev in such a way that it doesn't result in 0
