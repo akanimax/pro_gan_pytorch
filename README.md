@@ -19,7 +19,7 @@ install the "gpu" version of PyTorch.<br>
     
 3.) In your code:
     
-    import pytorch_pro_gan.PRO_GAN as pg
+    import pro_gan_pytorch.PRO_GAN as pg
  
  Use the modules `pg.Generator`, `pg.Discriminator` and
  `pg.ProGAN`. Mostly, you'll only need the ProGAN module.
