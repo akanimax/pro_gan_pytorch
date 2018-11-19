@@ -19,15 +19,16 @@ class _equalized_conv2d(th.nn.Module):
         :param bias: whether to use bias or not
         """
         super(_equalized_conv2d, self).__init__()
-        self.conv = th.nn.Conv2d(c_in, c_out, k_size, stride, pad, bias=True)
+        self.conv = th.nn.Conv2d(c_in, c_out, k_size, stride, pad, bias=False)
         if initializer == 'kaiming':
             th.nn.init.kaiming_normal_(self.conv.weight, a=th.nn.init.calculate_gain('conv2d'))
         elif initializer == 'xavier':
             th.nn.init.xavier_normal_(self.conv.weight)
 
         self.use_bias = bias
-
-        self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
+        
+        if self.use_bias:
+            self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
         self.scale = (th.mean(self.conv.weight.data ** 2)) ** 0.5
         self.conv.weight.data.copy_(self.conv.weight.data / self.scale)
 
@@ -69,8 +70,9 @@ class _equalized_deconv2d(th.nn.Module):
             th.nn.init.xavier_normal_(self.deconv.weight)
 
         self.use_bias = bias
-
-        self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
+        
+        if self.use_bias:
+            self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
         self.scale = (th.mean(self.deconv.weight.data ** 2)) ** 0.5
         self.deconv.weight.data.copy_(self.deconv.weight.data / self.scale)
 
@@ -103,7 +105,7 @@ class _equalized_linear(th.nn.Module):
         :param bias: whether to use bias with the linear layer
         """
         super(_equalized_linear, self).__init__()
-        self.linear = th.nn.Linear(c_in, c_out, bias=bias)
+        self.linear = th.nn.Linear(c_in, c_out, bias=False)
         if initializer == 'kaiming':
             th.nn.init.kaiming_normal_(self.linear.weight,
                                        a=th.nn.init.calculate_gain('linear'))
@@ -111,7 +113,9 @@ class _equalized_linear(th.nn.Module):
             th.nn.init.xavier_normal_(self.linear.weight)
 
         self.use_bias = bias
-        self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
+        
+        if self.use_bias:
+            self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
         self.scale = (th.mean(self.linear.weight.data ** 2)) ** 0.5
         self.linear.weight.data.copy_(self.linear.weight.data / self.scale)
 
@@ -130,6 +134,16 @@ class _equalized_linear(th.nn.Module):
             return x + self.bias.view(1, -1).expand_as(x)
         return x
 
+#----------------------------------------------------------------------------
+# Pixelwise feature vector normalization.
+# reference: https://github.com/tkarras/progressive_growing_of_gans/blob/master/networks.py#L120
+
+class PixelwiseNorm(nn.Module):
+    def __init__(self):
+        super(PixelwiseNorm, self).__init__()
+    def forward(self, x):
+        y = torch.mean(x.pow(2.), dim=1, keepdim=True) + 1e-8 # [N1HW]
+        return x.div(y.sqrt())
 
 # ==========================================================
 # Layers required for Building The generator and
@@ -160,8 +174,7 @@ class GenInitialBlock(th.nn.Module):
             self.conv_2 = Conv2d(in_channels, in_channels, (3, 3), padding=1, bias=True)
 
         # Pixelwise feature vector normalization operation
-        self.pixNorm = lambda x: local_response_norm(x, 2 * x.shape[1], alpha=2,
-                                                     beta=0.5, k=1e-8)
+        self.pixNorm = PixelwiseNorm()
 
         # leaky_relu:
         self.lrelu = LeakyReLU(0.2)
