@@ -4,6 +4,7 @@
 
 import numpy as np
 import torch as th
+import copy
 
 
 class Generator(th.nn.Module):
@@ -347,21 +348,18 @@ class ProGAN:
         # define the loss function used for training the GAN
         self.loss = self.__setup_loss(loss)
 
-        # setup the ema for the generator
         if self.use_ema:
-            from pro_gan_pytorch.CustomLayers import EMA
-            self.ema = EMA(self.ema_decay)
-            self.__register_generator_to_ema()
+            from pro_gan_pytorch.CustomLayers import update_average
 
-    def __register_generator_to_ema(self):
-        for name, param in self.gen.named_parameters():
-            if param.requires_grad:
-                self.ema.register(name, param.data)
+            # create a shadow copy of the generator
+            self.gen_shadow = copy.deepcopy(self.gen)
 
-    def __apply_ema_on_generator(self):
-        for name, param in self.gen.named_parameters():
-            if param.requires_grad:
-                param.data = self.ema(name, param.data)
+            # updater function:
+            self.ema_updater = update_average
+
+            # initialize the gen_shadow weights equal to the
+            # weights of gen
+            self.ema_updater(self.gen_shadow, self.gen, beta=0)
 
     def __setup_loss(self, loss):
         import pro_gan_pytorch.Losses as losses
@@ -455,7 +453,7 @@ class ProGAN:
 
         # if use_ema is true, apply ema to the generator parameters
         if self.use_ema:
-            self.__apply_ema_on_generator()
+            self.ema_updater(self.gen_shadow, self.gen, self.ema_decay)
 
         # return the loss value
         return loss.item()
@@ -524,19 +522,17 @@ class ConditionalProGAN:
 
         # setup the ema for the generator
         if self.use_ema:
-            from pro_gan_pytorch.CustomLayers import EMA
-            self.ema = EMA(self.ema_decay)
-            self.__register_generator_to_ema()
+            from pro_gan_pytorch.CustomLayers import update_average
 
-    def __register_generator_to_ema(self):
-        for name, param in self.gen.named_parameters():
-            if param.requires_grad:
-                self.ema.register(name, param.data)
+            # create a shadow copy of the generator
+            self.gen_shadow = copy.deepcopy(self.gen)
 
-    def __apply_ema_on_generator(self):
-        for name, param in self.gen.named_parameters():
-            if param.requires_grad:
-                param.data = self.ema(name, param.data)
+            # updater function:
+            self.ema_updater = update_average
+
+            # initialize the gen_shadow weights equal to the
+            # weights of gen
+            self.ema_updater(self.gen_shadow, self.gen, beta=0)
 
     def __setup_loss(self, loss):
         import pro_gan_pytorch.Losses as losses
@@ -635,7 +631,7 @@ class ConditionalProGAN:
 
         # if use_ema is true, apply ema to the generator parameters
         if self.use_ema:
-            self.__apply_ema_on_generator()
+            self.ema_updater(self.gen_shadow, self.gen, self.ema_decay)
 
         # return the loss value
         return loss.item()

@@ -1,5 +1,4 @@
 """ Module containing custom layers """
-import copy
 
 import torch as th
 
@@ -254,98 +253,85 @@ class GenGeneralConvBlock(th.nn.Module):
         return y
 
 
-# No need to calculate gradients for this
-class EMA:
+# function to calculate the Exponential moving averages for the Generator weights
+# This function updates the exponential average weights based on the current training
+def update_average(model_tgt, model_src, beta):
     """
-        Exponential moving average functionality
-        Note that this is not a module.
-        It only operates over the Parameters of Network
+    update the model_target using exponential moving averages
+    :param model_tgt: target model
+    :param model_src: source model
+    :param beta: value of decay beta
+    :return: None (updates the target model)
     """
 
-    def __init__(self, mu):
-        super(EMA, self).__init__()
-        self.mu = mu
-        self.shadow = {}
+    # utility function for toggling the gradient requirements of the models
+    def toggle_grad(model, requires_grad):
+        for p in model.parameters():
+            p.requires_grad_(requires_grad)
 
-    def register(self, name, val):
-        self.shadow[name] = val.clone()
+    # turn off gradient calculation
+    toggle_grad(model_tgt, False)
+    toggle_grad(model_src, False)
 
-    def __call__(self, name, x):
-        assert name in self.shadow
-        new_average = self.mu * x + (1 - self.mu) * self.shadow[name]
-        self.shadow[name] = new_average.clone()
-        return new_average
+    param_dict_src = dict(model_src.named_parameters())
+
+    for p_name, p_tgt in model_tgt.named_parameters():
+        p_src = param_dict_src[p_name]
+        assert (p_src is not p_tgt)
+        p_tgt.copy_(beta * p_tgt + (1. - beta) * p_src)
+
+    # turn back on the gradient calculation
+    toggle_grad(model_tgt, True)
+    toggle_grad(model_src, True)
 
 
 class MinibatchStdDev(th.nn.Module):
-    def __init__(self, averaging='all'):
+    """
+    Minibatch standard deviation layer for the discriminator
+    """
+
+    def __init__(self, group_size=None):
         """
-        constructor for the class
-        :param averaging: the averaging mode used for calculating the MinibatchStdDev
+        derived class constructor
+        :param group_size: the size of the group (default None => batch_size)
+                           note that if the batch_size % group_size != 0
+                           the group_size defaults to batch_size
         """
         super(MinibatchStdDev, self).__init__()
+        self.group_size = group_size
 
-        # lower case the passed parameter
-        self.averaging = averaging.lower()
-
-        if 'group' in self.averaging:
-            self.n = int(self.averaging[5:])
-        else:
-            assert self.averaging in \
-                   ['all', 'flat', 'spatial',
-                    'none', 'gpool'], 'Invalid averaging mode %s' % self.averaging
-
-        # calculate the std_dev in such a way that it doesn't result in 0
-        # otherwise 0 norm operation's gradient is nan
-        self.adjusted_std = lambda x, **kwargs: th.sqrt(
-            th.mean((x - th.mean(x, **kwargs)) ** 2, **kwargs) + 1e-8)
-
-    def forward(self, x):
+    def forward(self, x, alpha=1e-8):
         """
-        forward pass of the Layer
-        :param x: input
-        :return: y => output
+        forward pass of the layer
+        :param x: input activation volume
+        :param alpha: small number for numerical stability
+        :return: y => x appended with standard deviation constant map
         """
-        shape = list(x.size())
-        target_shape = copy.deepcopy(shape)
+        # calculate the g and m values
+        g = min(self.group_size, x.size(0)) \
+            if self.group_size is not None and (x.size(0) % self.group_size == 0) else x.size(0)
+        m = int(x.size(0) / g)
 
-        # compute the std's over the minibatch
-        vals = self.adjusted_std(x, dim=0, keepdim=True)
+        # [GMCHW] Split minibatch into M groups of size G.
+        y = th.reshape(x, (g, m, x.size(1), x.size(2), x.size(3)))
 
-        # perform averaging
-        if self.averaging == 'all':
-            target_shape[1] = 1
-            vals = th.mean(vals, dim=1, keepdim=True)
+        # [GMCHW] Subtract mean over group.
+        y = y - th.mean(y, dim=0, keepdim=True)
 
-        elif self.averaging == 'spatial':
-            if len(shape) == 4:
-                vals = th.mean(th.mean(vals, 2, keepdim=True), 3, keepdim=True)
+        # [MCHW]  Calc variance over group.
+        y = th.mean(y.pow(2.), dim=0, keepdim=False)
 
-        elif self.averaging == 'none':
-            target_shape = [target_shape[0]] + [s for s in target_shape[1:]]
+        # [MCHW]  Calc stddev over group.
+        y = th.sqrt(y + alpha)
 
-        elif self.averaging == 'gpool':
-            if len(shape) == 4:
-                vals = th.mean(th.mean(th.mean(x, 2, keepdim=True),
-                                       3, keepdim=True), 0, keepdim=True)
-        elif self.averaging == 'flat':
-            target_shape[1] = 1
-            vals = th.FloatTensor([self.adjusted_std(x)])
+        # [M111]  Take average over fmaps and pixels.
+        y = th.mean(y.view(m, -1), dim=1, keepdim=False).view(m, 1, 1, 1)
 
-        else:  # self.averaging == 'group'
-            target_shape[1] = self.n
-            vals = vals.view(self.n, self.shape[1] /
-                             self.n, self.shape[2], self.shape[3])
-            vals = th.mean(vals, 0, keepdim=True).view(1, self.n, 1, 1)
+        # [N1HW]  Replicate over group and pixels.
+        y = y.repeat(g, 1, x.size(2), x.size(3))
 
-        # spatial replication of the computed statistic
-        vals = vals.expand(*target_shape)
-
-        # concatenate the constant feature map to the input
-        y = th.cat([x, vals], 1)
-
-        # return the computed value
-        return y
+        # [NCHW]  Append as new fmap.
+        return th.cat([x, y], 1)
 
 
 class DisFinalBlock(th.nn.Module):
