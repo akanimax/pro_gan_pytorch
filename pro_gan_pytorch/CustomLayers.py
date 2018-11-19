@@ -19,15 +19,16 @@ class _equalized_conv2d(th.nn.Module):
         :param bias: whether to use bias or not
         """
         super(_equalized_conv2d, self).__init__()
-        self.conv = th.nn.Conv2d(c_in, c_out, k_size, stride, pad, bias=True)
+        self.conv = th.nn.Conv2d(c_in, c_out, k_size, stride, pad, bias=False)
         if initializer == 'kaiming':
             th.nn.init.kaiming_normal_(self.conv.weight, a=th.nn.init.calculate_gain('conv2d'))
         elif initializer == 'xavier':
             th.nn.init.xavier_normal_(self.conv.weight)
 
         self.use_bias = bias
-
-        self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
+        
+        if self.use_bias:
+            self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
         self.scale = (th.mean(self.conv.weight.data ** 2)) ** 0.5
         self.conv.weight.data.copy_(self.conv.weight.data / self.scale)
 
@@ -69,8 +70,9 @@ class _equalized_deconv2d(th.nn.Module):
             th.nn.init.xavier_normal_(self.deconv.weight)
 
         self.use_bias = bias
-
-        self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
+        
+        if self.use_bias:
+            self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
         self.scale = (th.mean(self.deconv.weight.data ** 2)) ** 0.5
         self.deconv.weight.data.copy_(self.deconv.weight.data / self.scale)
 
@@ -103,7 +105,7 @@ class _equalized_linear(th.nn.Module):
         :param bias: whether to use bias with the linear layer
         """
         super(_equalized_linear, self).__init__()
-        self.linear = th.nn.Linear(c_in, c_out, bias=bias)
+        self.linear = th.nn.Linear(c_in, c_out, bias=False)
         if initializer == 'kaiming':
             th.nn.init.kaiming_normal_(self.linear.weight,
                                        a=th.nn.init.calculate_gain('linear'))
@@ -111,7 +113,9 @@ class _equalized_linear(th.nn.Module):
             th.nn.init.xavier_normal_(self.linear.weight)
 
         self.use_bias = bias
-        self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
+        
+        if self.use_bias:
+            self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
         self.scale = (th.mean(self.linear.weight.data ** 2)) ** 0.5
         self.linear.weight.data.copy_(self.linear.weight.data / self.scale)
 
