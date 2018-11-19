@@ -271,74 +271,20 @@ class EMA:
 
 
 class MinibatchStdDev(th.nn.Module):
-    def __init__(self, averaging='all'):
-        """
-        constructor for the class
-        :param averaging: the averaging mode used for calculating the MinibatchStdDev
-        """
+    def __init__(self, group_size=4):
         super(MinibatchStdDev, self).__init__()
-
-        # lower case the passed parameter
-        self.averaging = averaging.lower()
-
-        if 'group' in self.averaging:
-            self.n = int(self.averaging[5:])
-        else:
-            assert self.averaging in \
-                   ['all', 'flat', 'spatial', 'none', 'gpool'],\
-                   'Invalid averaging mode %s' % self.averaging
-
-        # calculate the std_dev in such a way that it doesn't result in 0
-        # otherwise 0 norm operation's gradient is nan
-        self.adjusted_std = lambda x, **kwargs: th.sqrt(
-            th.mean((x - th.mean(x, **kwargs)) ** 2, **kwargs) + 1e-8)
+        self.group_size = group_size
 
     def forward(self, x):
-        """
-        forward pass of the Layer
-        :param x: input
-        :return: y => output
-        """
-        shape = list(x.size())
-        target_shape = copy.deepcopy(shape)
-
-        # compute the std's over the minibatch
-        vals = self.adjusted_std(x, dim=0, keepdim=True)
-
-        # perform averaging
-        if self.averaging == 'all':
-            target_shape[1] = 1
-            vals = th.mean(vals, dim=1, keepdim=True)
-
-        elif self.averaging == 'spatial':
-            if len(shape) == 4:
-                vals = th.mean(th.mean(vals, 2, keepdim=True), 3, keepdim=True)
-
-        elif self.averaging == 'none':
-            target_shape = [target_shape[0]] + [s for s in target_shape[1:]]
-
-        elif self.averaging == 'gpool':
-            if len(shape) == 4:
-                vals = th.mean(th.mean(th.mean(x, 2, keepdim=True),
-                                       3, keepdim=True), 0, keepdim=True)
-        elif self.averaging == 'flat':
-            target_shape[1] = 1
-            vals = th.FloatTensor([self.adjusted_std(x)])
-
-        else:  # self.averaging == 'group'
-            target_shape[1] = self.n
-            vals = vals.view(self.n, self.shape[1] /
-                             self.n, self.shape[2], self.shape[3])
-            vals = th.mean(vals, 0, keepdim=True).view(1, self.n, 1, 1)
-
-        # spatial replication of the computed statistic
-        vals = vals.expand(*target_shape)
-
-        # concatenate the constant feature map to the input
-        y = th.cat([x, vals], 1)
-
-        # return the computed value
-        return y
+        G = min(self.group_size, x.size(0)) if (x.size(0) % self.group_size == 0) else x.size(0)
+        M = int(x.size(0) / G)
+        y = torch.reshape(x, (G, M, x.size(1), x.size(2), x.size(3)))     # [GMCHW] Split minibatch into M groups of size G.
+        y = y - torch.mean(y, dim=0, keepdim=True)                        # [GMCHW] Subtract mean over group.
+        y = torch.mean(y.pow(2.), dim=0, keepdim=False)                   # [MCHW]  Calc variance over group.
+        y = torch.sqrt(y + 1e-8)                                          # [MCHW]  Calc stddev over group.
+        y = torch.mean(y.view(M,-1), dim=1, keepdim=False).view(M,1,1,1)  # [M111]  Take average over fmaps and pixels.
+        y = y.repeat(G,1,x.size(2), x.size(3))                            # [N1HW]  Replicate over group and pixels.
+        return torch.cat([x, y], 1)                                       # [NCHW]  Append as new fmap.
 
 
 class DisFinalBlock(th.nn.Module):
