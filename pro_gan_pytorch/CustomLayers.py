@@ -134,6 +134,16 @@ class _equalized_linear(th.nn.Module):
             return x + self.bias.view(1, -1).expand_as(x)
         return x
 
+#----------------------------------------------------------------------------
+# Pixelwise feature vector normalization.
+# reference: https://github.com/tkarras/progressive_growing_of_gans/blob/master/networks.py#L120
+
+class PixelwiseNorm(nn.Module):
+    def __init__(self):
+        super(PixelwiseNorm, self).__init__()
+    def forward(self, x):
+        y = torch.mean(x.pow(2.), dim=1, keepdim=True) + 1e-8 # [N1HW]
+        return x.div(y.sqrt())
 
 # ==========================================================
 # Layers required for Building The generator and
@@ -164,8 +174,7 @@ class GenInitialBlock(th.nn.Module):
             self.conv_2 = Conv2d(in_channels, in_channels, (3, 3), padding=1, bias=True)
 
         # Pixelwise feature vector normalization operation
-        self.pixNorm = lambda x: local_response_norm(x, 2 * x.shape[1], alpha=2,
-                                                     beta=0.5, k=1e-8)
+        self.pixNorm = PixelwiseNorm()
 
         # leaky_relu:
         self.lrelu = LeakyReLU(0.2)
