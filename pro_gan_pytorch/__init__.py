@@ -1,6 +1,6 @@
 """ Package has implementation of ProGAN (progressive growing of GANs)
     as an extension of PyTorch Module
 """
-import pro_gan_pytorch.PRO_GAN
-import pro_gan_pytorch.CustomLayers
-import pro_gan_pytorch.Losses
+from pro_gan_pytorch import PRO_GAN
+from pro_gan_pytorch import CustomLayers
+from pro_gan_pytorch import Losses

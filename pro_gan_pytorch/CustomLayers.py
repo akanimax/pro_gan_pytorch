@@ -138,7 +138,7 @@ class _equalized_linear(th.nn.Module):
 # ----------------------------------------------------------------------------
 # Pixelwise feature vector normalization.
 # reference: https://github.com/tkarras/progressive_growing_of_gans/blob/master/networks.py#L120
-
+# ----------------------------------------------------------------------------
 class PixelwiseNorm(th.nn.Module):
     def __init__(self):
         super(PixelwiseNorm, self).__init__()
@@ -150,8 +150,9 @@ class PixelwiseNorm(th.nn.Module):
         :param alpha: small number for numerical stability
         :return: y => pixel normalized activations
         """
-        y = th.mean(x.pow(2.), dim=1, keepdim=True) + alpha  # [N1HW]
-        return x.div(y.sqrt())
+        y = x.pow(2.).mean(dim=1, keepdim=True).add(alpha).sqrt()  # [N1HW]
+        y = x / y  # normalize the input x volume
+        return y
 
 
 # ==========================================================
@@ -290,15 +291,11 @@ class MinibatchStdDev(th.nn.Module):
     Minibatch standard deviation layer for the discriminator
     """
 
-    def __init__(self, group_size=None):
+    def __init__(self):
         """
         derived class constructor
-        :param group_size: the size of the group (default None => batch_size)
-                           note that if the batch_size % group_size != 0
-                           the group_size defaults to batch_size
         """
         super(MinibatchStdDev, self).__init__()
-        self.group_size = group_size
 
     def forward(self, x, alpha=1e-8):
         """
@@ -307,31 +304,25 @@ class MinibatchStdDev(th.nn.Module):
         :param alpha: small number for numerical stability
         :return: y => x appended with standard deviation constant map
         """
-        # calculate the g and m values
-        g = min(self.group_size, x.size(0)) \
-            if self.group_size is not None and (x.size(0) % self.group_size == 0) else x.size(0)
-        m = int(x.size(0) / g)
+        batch_size, _, height, width = x.shape
 
-        # [GMCHW] Split minibatch into M groups of size G.
-        y = th.reshape(x, (g, m, x.size(1), x.size(2), x.size(3)))
+        # [B x C x H x W] Subtract mean over batch.
+        y = x - x.mean(dim=0, keepdim=True)
 
-        # [GMCHW] Subtract mean over group.
-        y = y - th.mean(y, dim=0, keepdim=True)
+        # [1 x C x H x W]  Calc standard deviation over batch
+        y = th.sqrt(y.pow(2.).mean(dim=0, keepdim=False) + alpha)
 
-        # [MCHW]  Calc variance over group.
-        y = th.mean(y.pow(2.), dim=0, keepdim=False)
+        # [1]  Take average over feature_maps and pixels.
+        y = y.mean().view(1, 1, 1, 1)
 
-        # [MCHW]  Calc stddev over group.
-        y = th.sqrt(y + alpha)
+        # [B x 1 x H x W]  Replicate over group and pixels.
+        y = y.repeat(batch_size, 1, height, width)
 
-        # [M111]  Take average over fmaps and pixels.
-        y = th.mean(y.view(m, -1), dim=1, keepdim=False).view(m, 1, 1, 1)
+        # [B x C x H x W]  Append as new feature_map.
+        y = th.cat([x, y], 1)
 
-        # [N1HW]  Replicate over group and pixels.
-        y = y.repeat(g, 1, x.size(2), x.size(3))
-
-        # [NCHW]  Append as new fmap.
-        return th.cat([x, y], 1)
+        # return the computed values:
+        return y
 
 
 class DisFinalBlock(th.nn.Module):
