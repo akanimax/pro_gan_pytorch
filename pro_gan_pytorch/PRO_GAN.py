@@ -191,15 +191,13 @@ class Discriminator(th.nn.Module):
 class ConditionalDiscriminator(th.nn.Module):
     """ Discriminator of the GAN """
 
-    def __init__(self, height=7, feature_size=512, embedding_size=4096,
-                 compressed_latent_size=128, use_eql=True):
+    def __init__(self, num_classes, height=7, feature_size=512, use_eql=True):
         """
         constructor for the class
+        :param num_classes: number of classes for conditional discrimination
         :param height: total height of the discriminator (Must be equal to the Generator depth)
         :param feature_size: size of the deepest features extracted
                              (Must be equal to Generator latent_size)
-        :param embedding_size: size of the embedding for conditional discrimination
-        :param compressed_latent_size: size of the compressed version
         :param use_eql: whether to use equalized learning rate
         """
         from torch.nn import ModuleList, AvgPool2d
@@ -216,11 +214,10 @@ class ConditionalDiscriminator(th.nn.Module):
         self.use_eql = use_eql
         self.height = height
         self.feature_size = feature_size
-        self.embedding_size = embedding_size
-        self.compressed_latent_size = compressed_latent_size
+        self.num_classes = num_classes
 
-        self.final_block = ConDisFinalBlock(self.feature_size, self.embedding_size,
-                                            self.compressed_latent_size, use_eql=self.use_eql)
+        self.final_block = ConDisFinalBlock(self.feature_size, self.num_classes,
+                                            use_eql=self.use_eql)
 
         # create a module list of the other required general convolution blocks
         self.layers = ModuleList([])  # initialize to empty list
@@ -256,11 +253,12 @@ class ConditionalDiscriminator(th.nn.Module):
         # register the temporary downSampler
         self.temporaryDownsampler = AvgPool2d(2)
 
-    def forward(self, x, latent_vector, height, alpha):
+    def forward(self, x, labels, height, alpha):
         """
         forward pass of the discriminator
         :param x: input to the network
-        :param latent_vector: latent vector required for conditional discrimination
+        :param labels: labels required for conditional discrimination
+                       note that these are pure integer labels of shape [B x 1]
         :param height: current height of operation (Progressive GAN)
         :param alpha: current value of alpha for fade-in
         :return: out => raw prediction values
@@ -282,7 +280,7 @@ class ConditionalDiscriminator(th.nn.Module):
         else:
             y = self.rgb_to_features[0](x)
 
-        out = self.final_block(y, latent_vector)
+        out = self.final_block(y, labels)
 
         return out
 
@@ -302,14 +300,14 @@ class ProGAN:
         :param beta_1: beta_1 for Adam
         :param beta_2: beta_2 for Adam
         :param eps: epsilon for Adam
-        :param n_critic: number of times to update discriminator
-                         (Used only if loss is wgan or wgan-gp)
+        :param n_critic: number of times to update discriminator per generator update
         :param drift: drift penalty for the
                       (Used only if loss is wgan or wgan-gp)
         :param use_eql: whether to use equalized learning rate
         :param loss: the loss function to be used
                      Can either be a string =>
-                          ["wgan-gp", "wgan", "lsgan", "lsgan-with-sigmoid"]
+                          ["wgan-gp", "wgan", "lsgan", "lsgan-with-sigmoid",
+                          "hinge", "standard-gan" or "relativistic-hinge"]
                      Or an instance of GANLoss
         :param use_ema: boolean for whether to use exponential moving averages
         :param ema_decay: value of mu for ema
@@ -367,18 +365,29 @@ class ProGAN:
         if isinstance(loss, str):
             loss = loss.lower()  # lowercase the string
             if loss == "wgan":
-                loss = losses.WGAN_GP(self.device, self.dis, self.drift, use_gp=False)
+                loss = losses.WGAN_GP(self.dis, self.drift, use_gp=False)
                 # note if you use just wgan, you will have to use weight clipping
                 # in order to prevent gradient exploding
+                # check the optimize_discriminator method where this has been
+                # taken care of.
 
             elif loss == "wgan-gp":
-                loss = losses.WGAN_GP(self.device, self.dis, self.drift, use_gp=True)
+                loss = losses.WGAN_GP(self.dis, self.drift, use_gp=True)
+
+            elif loss == "standard-gan":
+                loss = losses.StandardGAN(self.dis)
 
             elif loss == "lsgan":
-                loss = losses.LSGAN(self.device, self.dis)
+                loss = losses.LSGAN(self.dis)
 
             elif loss == "lsgan-with-sigmoid":
-                loss = losses.LSGAN_SIGMOID(self.device, self.dis)
+                loss = losses.LSGAN_SIGMOID(self.dis)
+
+            elif loss == "hinge":
+                loss = losses.HingeGAN(self.dis)
+
+            elif loss == "relativistic-hinge":
+                loss = losses.RelativisticAverageHingeGAN(self.dis)
 
             else:
                 raise ValueError("Unknown loss function requested")
@@ -387,6 +396,37 @@ class ProGAN:
             raise ValueError("loss is neither an instance of GANLoss nor a string")
 
         return loss
+
+    def __progressive_downsampling(self, real_batch, depth, alpha):
+        """
+        private helper for downsampling the original images in order to facilitate the
+        progressive growing of the layers.
+        :param real_batch: batch of real samples
+        :param depth: depth at which training is going on
+        :param alpha: current value of the fader alpha
+        :return: real_samples => modified real batch of samples
+        """
+
+        from torch.nn import AvgPool2d
+        from torch.nn.functional import interpolate
+
+        # downsample the real_batch for the given depth
+        down_sample_factor = int(np.power(2, self.depth - depth - 1))
+        prior_downsample_factor = max(int(np.power(2, self.depth - depth)), 0)
+
+        ds_real_samples = AvgPool2d(down_sample_factor)(real_batch)
+
+        if depth > 0:
+            prior_ds_real_samples = interpolate(AvgPool2d(prior_downsample_factor)(real_batch),
+                                                scale_factor=2)
+        else:
+            prior_ds_real_samples = ds_real_samples
+
+        # real samples are a combination of ds_real_samples and prior_ds_real_samples
+        real_samples = (alpha * ds_real_samples) + ((1 - alpha) * prior_ds_real_samples)
+
+        # return the so computed real_samples
+        return real_samples
 
     def optimize_discriminator(self, noise, real_batch, depth, alpha):
         """
@@ -397,23 +437,8 @@ class ProGAN:
         :param alpha: current alpha for fade-in
         :return: current loss (Wasserstein loss)
         """
-        from torch.nn import AvgPool2d
-        from torch.nn.functional import upsample
 
-        # downsample the real_batch for the given depth
-        down_sample_factor = int(np.power(2, self.depth - depth - 1))
-        prior_downsample_factor = max(int(np.power(2, self.depth - depth)), 0)
-
-        ds_real_samples = AvgPool2d(down_sample_factor)(real_batch)
-
-        if depth > 0:
-            prior_ds_real_samples = upsample(AvgPool2d(prior_downsample_factor)(real_batch),
-                                             scale_factor=2)
-        else:
-            prior_ds_real_samples = ds_real_samples
-
-        # real samples are a combination of ds_real_samples and prior_ds_real_samples
-        real_samples = (alpha * ds_real_samples) + ((1 - alpha) * prior_ds_real_samples)
+        real_samples = self.__progressive_downsampling(real_batch, depth, alpha)
 
         loss_val = 0
         for _ in range(self.n_critic):
@@ -431,20 +456,24 @@ class ProGAN:
 
         return loss_val / self.n_critic
 
-    def optimize_generator(self, noise, depth, alpha):
+    def optimize_generator(self, noise, real_batch, depth, alpha):
         """
         performs one step of weight update on generator for the given batch_size
         :param noise: input random noise required for generating samples
+        :param real_batch: batch of real samples
         :param depth: depth of the network at which optimization is done
         :param alpha: value of alpha for fade-in effect
         :return: current loss (Wasserstein estimate)
         """
 
+        real_samples = self.__progressive_downsampling(real_batch, depth, alpha)
+
         # generate fake samples:
         fake_samples = self.gen(noise, depth, alpha)
 
-        # TODO: Change this implementation for making it compatible for relativisticGAN
-        loss = self.loss.gen_loss(None, fake_samples, depth, alpha)
+        # TODO_complete:
+        # Change this implementation for making it compatible for relativisticGAN
+        loss = self.loss.gen_loss(real_samples, fake_samples, depth, alpha)
 
         # optimize the generator
         self.gen_optim.zero_grad()
@@ -462,17 +491,16 @@ class ProGAN:
 class ConditionalProGAN:
     """ Wrapper around the Generator and the Discriminator """
 
-    def __init__(self, embedding_size, depth=7, latent_size=512, compressed_latent_size=128,
+    def __init__(self, num_classes, depth=7, latent_size=512,
                  learning_rate=0.001, beta_1=0, beta_2=0.99,
                  eps=1e-8, drift=0.001, n_critic=1, use_eql=True,
                  loss="wgan-gp", use_ema=True, ema_decay=0.999,
                  device=th.device("cpu")):
         """
         constructor for the class
-        :param embedding_size: size of the encoded text embeddings
+        :param num_classes: number of classes required for the conditional gan
         :param depth: depth of the GAN (will be used for each generator and discriminator)
         :param latent_size: latent size of the manifold used by the GAN
-        :param compressed_latent_size: size of the compressed latent vectors
         :param learning_rate: learning rate for Adam
         :param beta_1: beta_1 for Adam
         :param beta_2: beta_2 for Adam
@@ -495,13 +523,13 @@ class ConditionalProGAN:
 
         # Create the Generator and the Discriminator
         self.gen = Generator(depth, latent_size, use_eql=use_eql).to(device)
-        self.dis = ConditionalDiscriminator(depth, latent_size,
-                                            embedding_size, compressed_latent_size,
-                                            use_eql=use_eql).to(device)
+        self.dis = ConditionalDiscriminator(
+            num_classes, height=depth,
+            feature_size=latent_size,
+            use_eql=use_eql).to(device)
 
         # state of the object
         self.latent_size = latent_size
-        self.compressed_latent_size = compressed_latent_size
         self.depth = depth
         self.use_ema = use_ema
         self.ema_decay = ema_decay
@@ -540,12 +568,12 @@ class ConditionalProGAN:
         if isinstance(loss, str):
             loss = loss.lower()  # lowercase the string
             if loss == "wgan":
-                loss = losses.CondWGAN_GP(self.device, self.dis, self.drift, use_gp=False)
+                loss = losses.CondWGAN_GP(self.dis, self.drift, use_gp=False)
                 # note if you use just wgan, you will have to use weight clipping
                 # in order to prevent gradient exploding
 
             elif loss == "wgan-gp":
-                loss = losses.CondWGAN_GP(self.device, self.dis, self.drift, use_gp=True)
+                loss = losses.CondWGAN_GP(self.dis, self.drift, use_gp=True)
 
             else:
                 raise ValueError("Unknown loss function requested")
