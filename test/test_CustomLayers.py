@@ -24,7 +24,7 @@ class Test_equalized_conv2d(TestCase):
         self.assertEqual(th.isinf(mock_out).sum().item(), 0)
 
         # check the weight's scale
-        self.assertAlmostEqual(self.conv_block.conv.weight.data.std(), 1, delta=1e-2)
+        self.assertAlmostEqual(self.conv_block.weight.data.std(), 1, delta=1e-1)
 
     def tearDown(self):
         # delete the computational resources
@@ -49,7 +49,7 @@ class Test_equalized_deconv2d(TestCase):
         self.assertEqual(th.isinf(mock_out).sum().item(), 0)
 
         # check the weight's scale
-        self.assertAlmostEqual(self.deconv_block.deconv.weight.data.std(), 1, delta=1e-2)
+        self.assertAlmostEqual(self.deconv_block.weight.data.std(), 1, delta=1e-1)
 
     def tearDown(self):
         # delete the computational resources
@@ -75,7 +75,7 @@ class Test_equalized_linear(TestCase):
         self.assertEqual(th.isinf(mock_out).sum().item(), 0)
 
         # check the weight's scale
-        self.assertAlmostEqual(self.lin_block.linear.weight.data.std(), 1, delta=1e-2)
+        self.assertAlmostEqual(self.lin_block.weight.data.std(), 1, delta=1e-1)
 
     def tearDown(self):
         # delete the computational resources

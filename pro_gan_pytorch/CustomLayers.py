@@ -5,32 +5,37 @@ import torch as th
 
 # extending Conv2D and Deconv2D layers for equalized learning rate logic
 class _equalized_conv2d(th.nn.Module):
-    """ conv2d with the concept of equalized learning rate """
+    """ conv2d with the concept of equalized learning rate
+        Args:
+            :param c_in: input channels
+            :param c_out:  output channels
+            :param k_size: kernel size (h, w) should be a tuple or a single integer
+            :param stride: stride for conv
+            :param pad: padding
+            :param bias: whether to use bias or not
+    """
 
-    def __init__(self, c_in, c_out, k_size, stride=1, pad=0, initializer='kaiming', bias=True):
-        """
-        constructor for the class
-        :param c_in: input channels
-        :param c_out:  output channels
-        :param k_size: kernel size (h, w) should be a tuple or a single integer
-        :param stride: stride for conv
-        :param pad: padding
-        :param initializer: initializer. one of kaiming or xavier
-        :param bias: whether to use bias or not
-        """
+    def __init__(self, c_in, c_out, k_size, stride=1, pad=0, bias=True):
+        """ constructor for the class """
+        from torch.nn.modules.utils import _pair
+        from numpy import sqrt, prod
+
         super(_equalized_conv2d, self).__init__()
-        self.conv = th.nn.Conv2d(c_in, c_out, k_size, stride, pad, bias=False)
-        if initializer == 'kaiming':
-            th.nn.init.kaiming_normal_(self.conv.weight, a=th.nn.init.calculate_gain('conv2d'))
-        elif initializer == 'xavier':
-            th.nn.init.xavier_normal_(self.conv.weight)
+
+        # define the weight and bias if to be used
+        self.weight = th.nn.Parameter(th.nn.init.normal_(
+            th.empty(c_out, c_in, *_pair(k_size))
+        ))
 
         self.use_bias = bias
+        self.stride = stride
+        self.pad = pad
 
         if self.use_bias:
             self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
-        self.scale = (th.mean(self.conv.weight.data ** 2)) ** 0.5
-        self.conv.weight.data.copy_(self.conv.weight.data / self.scale)
+
+        fan_in = prod(_pair(k_size)) * c_in  # value of fan_in
+        self.scale = sqrt(2) / sqrt(fan_in)
 
     def forward(self, x):
         """
@@ -38,43 +43,50 @@ class _equalized_conv2d(th.nn.Module):
         :param x: input
         :return: y => output
         """
-        try:
-            dev_scale = self.scale.to(x.get_device())
-        except RuntimeError:
-            dev_scale = self.scale
-        x = self.conv(x.mul(dev_scale))
-        if self.use_bias:
-            return x + self.bias.view(1, -1, 1, 1).expand_as(x)
-        return x
+        from torch.nn.functional import conv2d
+
+        return conv2d(input=x,
+                      weight=self.weight * self.scale,  # scale the weight on runtime
+                      bias=self.bias if self.use_bias else None,
+                      stride=self.stride,
+                      padding=self.pad)
+
+    def extra_repr(self):
+        return ", ".join(map(str, self.weight.shape))
 
 
 class _equalized_deconv2d(th.nn.Module):
-    """ Transpose convolution using the equalized learning rate """
+    """ Transpose convolution using the equalized learning rate
+        Args:
+            :param c_in: input channels
+            :param c_out: output channels
+            :param k_size: kernel size
+            :param stride: stride for convolution transpose
+            :param pad: padding
+            :param bias: whether to use bias or not
+    """
 
-    def __init__(self, c_in, c_out, k_size, stride=1, pad=0, initializer='kaiming', bias=True):
-        """
-        constructor for the class
-        :param c_in: input channels
-        :param c_out: output channels
-        :param k_size: kernel size
-        :param stride: stride for convolution transpose
-        :param pad: padding
-        :param initializer: initializer. one of kaiming or xavier
-        :param bias: whether to use bias or not
-        """
+    def __init__(self, c_in, c_out, k_size, stride=1, pad=0, bias=True):
+        """ constructor for the class """
+        from torch.nn.modules.utils import _pair
+        from numpy import sqrt
+
         super(_equalized_deconv2d, self).__init__()
-        self.deconv = th.nn.ConvTranspose2d(c_in, c_out, k_size, stride, pad, bias=False)
-        if initializer == 'kaiming':
-            th.nn.init.kaiming_normal_(self.deconv.weight, a=th.nn.init.calculate_gain('conv2d'))
-        elif initializer == 'xavier':
-            th.nn.init.xavier_normal_(self.deconv.weight)
+
+        # define the weight and bias if to be used
+        self.weight = th.nn.Parameter(th.nn.init.normal_(
+            th.empty(c_in, c_out, *_pair(k_size))
+        ))
 
         self.use_bias = bias
+        self.stride = stride
+        self.pad = pad
 
         if self.use_bias:
             self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
-        self.scale = (th.mean(self.deconv.weight.data ** 2)) ** 0.5
-        self.deconv.weight.data.copy_(self.deconv.weight.data / self.scale)
+
+        fan_in = c_in  # value of fan_in for deconv
+        self.scale = sqrt(2) / sqrt(fan_in)
 
     def forward(self, x):
         """
@@ -82,42 +94,45 @@ class _equalized_deconv2d(th.nn.Module):
         :param x: input
         :return: y => output
         """
-        try:
-            dev_scale = self.scale.to(x.get_device())
-        except RuntimeError:
-            dev_scale = self.scale
+        from torch.nn.functional import conv_transpose2d
 
-        x = self.deconv(x.mul(dev_scale))
-        if self.use_bias:
-            return x + self.bias.view(1, -1, 1, 1).expand_as(x)
-        return x
+        return conv_transpose2d(input=x,
+                                weight=self.weight * self.scale,  # scale the weight on runtime
+                                bias=self.bias if self.use_bias else None,
+                                stride=self.stride,
+                                padding=self.pad)
+
+    def extra_repr(self):
+        return ", ".join(map(str, self.weight.shape))
 
 
 class _equalized_linear(th.nn.Module):
-    """ Linear layer using equalized learning rate """
+    """ Linear layer using equalized learning rate
+        Args:
+            :param c_in: number of input channels
+            :param c_out: number of output channels
+            :param bias: whether to use bias with the linear layer
+    """
 
-    def __init__(self, c_in, c_out, initializer='kaiming', bias=True):
+    def __init__(self, c_in, c_out, bias=True):
         """
-        Linear layer from pytorch extended to include equalized learning rate
-        :param c_in: number of input channels
-        :param c_out: number of output channels
-        :param initializer: initializer to be used: one of "kaiming" or "xavier"
-        :param bias: whether to use bias with the linear layer
+        Linear layer modified for equalized learning rate
         """
+        from numpy import sqrt
+
         super(_equalized_linear, self).__init__()
-        self.linear = th.nn.Linear(c_in, c_out, bias=False)
-        if initializer == 'kaiming':
-            th.nn.init.kaiming_normal_(self.linear.weight,
-                                       a=th.nn.init.calculate_gain('linear'))
-        elif initializer == 'xavier':
-            th.nn.init.xavier_normal_(self.linear.weight)
+
+        self.weight = th.nn.Parameter(th.nn.init.normal_(
+            th.empty(c_out, c_in)
+        ))
 
         self.use_bias = bias
 
         if self.use_bias:
             self.bias = th.nn.Parameter(th.FloatTensor(c_out).fill_(0))
-        self.scale = (th.mean(self.linear.weight.data ** 2)) ** 0.5
-        self.linear.weight.data.copy_(self.linear.weight.data / self.scale)
+
+        fan_in = c_in
+        self.scale = sqrt(2) / sqrt(fan_in)
 
     def forward(self, x):
         """
@@ -125,14 +140,9 @@ class _equalized_linear(th.nn.Module):
         :param x: input
         :return: y => output
         """
-        try:
-            dev_scale = self.scale.to(x.get_device())
-        except RuntimeError:
-            dev_scale = self.scale
-        x = self.linear(x.mul(dev_scale))
-        if self.use_bias:
-            return x + self.bias.view(1, -1).expand_as(x)
-        return x
+        from torch.nn.functional import linear
+        return linear(x, self.weight * self.scale,
+                      self.bias if self.use_bias else None)
 
 
 # ----------------------------------------------------------------------------
