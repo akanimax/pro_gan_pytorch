@@ -948,9 +948,9 @@ class ConditionalProGAN:
         """
         if not hasattr(self, "label_oh_encoder"):
             self.label_oh_encoder = th.nn.Embedding(self.num_classes, self.num_classes)
-            self.label_oh_encoder.weight = th.eye(self.num_classes)
+            self.label_oh_encoder.weight.data = th.eye(self.num_classes)
 
-        return self.label_oh_encoder(labels)
+        return self.label_oh_encoder(labels.view(-1))
 
     def train(self, dataset, epochs, batch_sizes,
               fade_in_percentage, start_depth=0, num_workers=3, feedback_factor=100,
@@ -996,11 +996,13 @@ class ConditionalProGAN:
         # create fixed_input for debugging
         temp_data_loader = get_data_loader(dataset, batch_sizes[0], num_workers=3)
         _, fx_labels = next(iter(temp_data_loader))
-        fixed_labels = self.label_oh_encoder(fx_labels.view(-1, 1))  # reshape them properly
-        fixed_input = th.randn(batch_sizes[0], self.latent_size - self.num_classes).to(self.device)
-        fixed_input = th.cat((fixed_labels, fixed_input), dim=0)
+        fixed_labels = self.one_hot_encode(fx_labels.view(-1, 1))  # reshape them properly
+        fixed_input = th.randn(fixed_labels.shape[0],
+                               self.latent_size - self.num_classes).to(self.device)
+        fixed_input = th.cat((fixed_labels, fixed_input), dim=-1)
         del temp_data_loader  # delete the temp data_loader since it is not required anymore
 
+        os.makedirs(sample_dir, exist_ok=True)  # make sure the directory exists
         self.__save_label_info_file(os.path.join(sample_dir, "labels.txt"), fx_labels)
 
         print("Starting the training process ... ")
@@ -1037,7 +1039,7 @@ class ConditionalProGAN:
                     label_information = self.one_hot_encode(labels)
                     latent_vector = th.randn(images.shape[0],
                                              self.latent_size - self.num_classes).to(self.device)
-                    gan_input = th.cat((label_information, latent_vector))
+                    gan_input = th.cat((label_information, latent_vector), dim=-1)
 
                     # optimize the discriminator:
                     dis_loss = self.optimize_discriminator(gan_input, images,

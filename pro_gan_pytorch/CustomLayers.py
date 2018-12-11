@@ -419,7 +419,7 @@ class ConDisFinalBlock(th.nn.Module):
             self.conv_3 = Conv2d(in_channels, 1, (1, 1), bias=True)
 
         # we also need an embedding matrix for the label vectors
-        self.label_embedder = Embedding(num_classes, in_channels)
+        self.label_embedder = Embedding(num_classes, in_channels, max_norm=1)
 
         # leaky_relu:
         self.lrelu = LeakyReLU(0.2)
