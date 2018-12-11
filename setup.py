@@ -9,5 +9,5 @@ setup(
     author='akanimax',
     author_email='akanimax@gmail.com',
     description='ProGAN package implemented as an extension of PyTorch nn.Module',
-    install_requires=['numpy', 'torch']
+    install_requires=['numpy', 'torch', 'torchvision']
 )

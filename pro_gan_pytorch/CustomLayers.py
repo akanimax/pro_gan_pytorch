@@ -227,11 +227,12 @@ class GenGeneralConvBlock(th.nn.Module):
         :param out_channels: number of output channels required
         :param use_eql: whether to use equalized learning rate
         """
-        from torch.nn import LeakyReLU, Upsample
+        from torch.nn import LeakyReLU
+        from torch.nn.functional import interpolate
 
         super(GenGeneralConvBlock, self).__init__()
 
-        self.upsample = Upsample(scale_factor=2)
+        self.upsample = lambda x: interpolate(x, scale_factor=2)
 
         if use_eql:
             self.conv_1 = _equalized_conv2d(in_channels, out_channels, (3, 3),
@@ -434,7 +435,7 @@ class ConDisFinalBlock(th.nn.Module):
         # minibatch_std_dev layer
         y = self.batch_discriminator(x)  # [B x C x 4 x 4]
 
-        # define the computations
+        # perform the forward pass
         y = self.lrelu(self.conv_1(y))  # [B x C x 4 x 4]
 
         # obtain the computed features

@@ -42,7 +42,7 @@ class GANLoss:
 
 
 class ConditionalGANLoss:
-    """ Base class for all losses """
+    """ Base class for all conditional losses """
 
     def __init__(self, dis):
         self.dis = dis
@@ -76,7 +76,7 @@ class StandardGAN(GANLoss):
         # device for computations:
         device = fake_samps.device
 
-        # predictions for real images :
+        # predictions for real images and fake images separately :
         r_preds = self.dis(real_samps, height, alpha)
         f_preds = self.dis(fake_samps, height, alpha)
 
@@ -252,6 +252,47 @@ class RelativisticAverageHingeGAN(GANLoss):
 # =============================================================
 # Conditional versions of the Losses:
 # =============================================================
+
+class CondStandardGAN(ConditionalGANLoss):
+
+    def __init__(self, dis):
+        from torch.nn import BCEWithLogitsLoss
+
+        super().__init__(dis)
+
+        # define the criterion and activation used for object
+        self.criterion = BCEWithLogitsLoss()
+
+    def dis_loss(self, real_samps, fake_samps, labels, height, alpha):
+        # small assertion:
+        assert real_samps.device == fake_samps.device, \
+            "Real and Fake samples are not on the same device"
+
+        # device for computations:
+        device = fake_samps.device
+
+        # predictions for real images and fake images separately:
+        r_preds = self.dis(real_samps, labels, height, alpha)
+        f_preds = self.dis(fake_samps, labels, height, alpha)
+
+        # calculate the real loss:
+        real_loss = self.criterion(
+            th.squeeze(r_preds),
+            th.ones(real_samps.shape[0]).to(device))
+
+        # calculate the fake loss:
+        fake_loss = self.criterion(
+            th.squeeze(f_preds),
+            th.zeros(fake_samps.shape[0]).to(device))
+
+        # return final loss
+        return (real_loss + fake_loss) / 2
+
+    def gen_loss(self, _, fake_samps, labels, height, alpha):
+        preds, _, _ = self.dis(fake_samps, labels, height, alpha)
+        return self.criterion(th.squeeze(preds),
+                              th.ones(fake_samps.shape[0]).to(fake_samps.device))
+
 
 class CondWGAN_GP(ConditionalGANLoss):
 
