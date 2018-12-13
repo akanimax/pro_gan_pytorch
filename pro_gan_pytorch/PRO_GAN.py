@@ -1034,7 +1034,7 @@ class ConditionalProGAN:
                     # extract current batch of data for training
                     images, labels = batch
                     images = images.to(self.device)
-                    labels = labels.view(-1, 1).to(self.device)
+                    labels = labels.view(-1, 1)
 
                     # create the input to the Generator
                     label_information = self.one_hot_encode(labels).to(self.device)
