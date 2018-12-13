@@ -996,7 +996,8 @@ class ConditionalProGAN:
         # create fixed_input for debugging
         temp_data_loader = get_data_loader(dataset, batch_sizes[0], num_workers=3)
         _, fx_labels = next(iter(temp_data_loader))
-        fixed_labels = self.one_hot_encode(fx_labels.view(-1, 1))  # reshape them properly
+        # reshape them properly
+        fixed_labels = self.one_hot_encode(fx_labels.view(-1, 1)).to(self.device)
         fixed_input = th.randn(fixed_labels.shape[0],
                                self.latent_size - self.num_classes).to(self.device)
         fixed_input = th.cat((fixed_labels, fixed_input), dim=-1)
