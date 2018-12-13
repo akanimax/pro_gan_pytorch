@@ -1037,7 +1037,7 @@ class ConditionalProGAN:
                     labels = labels.view(-1, 1).to(self.device)
 
                     # create the input to the Generator
-                    label_information = self.one_hot_encode(labels)
+                    label_information = self.one_hot_encode(labels).to(self.device)
                     latent_vector = th.randn(images.shape[0],
                                              self.latent_size - self.num_classes).to(self.device)
                     gan_input = th.cat((label_information, latent_vector), dim=-1)
