@@ -25,8 +25,9 @@ class Generator(th.nn.Module):
         :param latent_size: size of the latent manifold
         :param use_eql: whether to use equalized learning rate
         """
-        from torch.nn import ModuleList, Upsample
+        from torch.nn import ModuleList
         from pro_gan_pytorch.CustomLayers import GenGeneralConvBlock, GenInitialBlock
+        from torch.nn.functional import interpolate
 
         super(Generator, self).__init__()
 
@@ -74,7 +75,7 @@ class Generator(th.nn.Module):
             self.rgb_converters.append(rgb)
 
         # register the temporary upsampler
-        self.temporaryUpsampler = Upsample(scale_factor=2)
+        self.temporaryUpsampler = lambda x: interpolate(x, scale_factor=2)
 
     def forward(self, x, depth, alpha):
         """

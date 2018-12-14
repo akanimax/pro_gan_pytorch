@@ -126,15 +126,18 @@ class WGAN_GP(GANLoss):
 
         # create the merge of both real and fake samples
         merged = (epsilon * real_samps) + ((1 - epsilon) * fake_samps)
+        merged.requires_grad = True
 
         # forward pass
         op = self.dis.forward(merged, height, alpha)
 
         # obtain gradient of op wrt. merged
         gradient = grad(outputs=op, inputs=merged, create_graph=True,
-                        grad_outputs=th.ones_like(op), only_inputs=True)[0]
+                        retain_graph=True, grad_outputs=th.ones_like(op),
+                        only_inputs=True)[0]
 
         # calculate the penalty using these gradients
+        gradient = gradient.view(gradient.shape[0], -1)
         penalty = reg_lambda * ((gradient.norm(p=2, dim=1) - 1) ** 2).mean()
 
         # return the calculated penalty:
@@ -150,7 +153,6 @@ class WGAN_GP(GANLoss):
 
         if self.use_gp:
             # calculate the WGAN-GP (gradient penalty)
-            fake_samps.requires_grad = True  # turn on gradients for penalty calculation
             gp = self.__gradient_penalty(real_samps, fake_samps, height, alpha)
             loss += gp
 
