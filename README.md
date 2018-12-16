@@ -1,5 +1,5 @@
 # pro_gan_pytorch
-Package contains implementation of ProGAN. 
+Package contains implementation of ProGAN.<br> 
 Paper titled "Progressive growing of GANs for improved 
 Quality, Stability, and Variation". <br>
 link -> https://arxiv.org/abs/1710.10196 <br>
