@@ -22,7 +22,9 @@ install the "gpu" version of PyTorch.<br>
     import pro_gan_pytorch.PRO_GAN as pg
  
  Use the modules `pg.Generator`, `pg.Discriminator` and
- `pg.ProGAN`. Mostly, you'll only need the ProGAN module.
+ `pg.ProGAN`. Mostly, you'll only need the ProGAN 
+ module for training. For inference, you will probably 
+ need the `pg.Generator`.
 
 4.) Example Code for CIFAR-10 dataset:
 
@@ -34,7 +36,7 @@ install the "gpu" version of PyTorch.<br>
     device = th.device("cuda" if th.cuda.is_available() else "cpu")
     data_path = "cifar-10/"
 
-    def setup_data(batch_size, num_workers, download=False):
+    def setup_data(download=False):
         """
         setup the CIFAR-10 dataset for training the CNN
         :param batch_size: batch_size for sgd
@@ -51,69 +53,70 @@ install the "gpu" version of PyTorch.<br>
         trainset = tv.datasets.CIFAR10(root=data_path,
                                        transform=transforms,
                                        download=download)
-        trainloader = th.utils.data.DataLoader(trainset, batch_size=batch_size,
-                                               shuffle=True,
-                                               num_workers=num_workers)
 
         testset = tv.datasets.CIFAR10(root=data_path,
                                       transform=transforms, train=False,
                                       download=False)
-        testloader = th.utils.data.DataLoader(testset, batch_size=batch_size,
-                                              shuffle=True,
-                                              num_workers=num_workers)
 
-        return classes, trainloader, testloader
+        return classes, trainset, testset
 
 
     if __name__ == '__main__':
 
         # some parameters:
         depth = 4
-        num_epochs = 100  # number of epochs per depth (resolution)
+        # hyper-parameters per depth (resolution)
+        num_epochs = [10, 20, 20, 20]
+        fade_ins = [50, 50, 50, 50]
+        batch_sizes = [128, 128, 128, 128]
         latent_size = 128
 
         # get the data. Ignore the test data and their classes
-        _, train_data_loader, _ = setup_data(batch_size=32, num_workers=3, download=True)
+        _, dataset, _ = setup_data(download=True)
 
         # ======================================================================
         # This line creates the PRO-GAN
         # ======================================================================
         pro_gan = pg.ProGAN(depth=depth, latent_size=latent_size, device=device)
         # ======================================================================
-
-        # train the pro_gan using the cifar-10 data
-        for current_depth in range(depth):
-            print("working on depth:", current_depth)
-
-            # note that the rest of the api indexes depth from 0
-            for epoch in range(1, num_epochs + 1):
-                print("\ncurrent_epoch: ", epoch)
-
-                # calculate the value of aplha for fade-in effect
-                alpha = epoch / num_epochs
-                print("value of alpha:", alpha)
-
-                # iterate over the dataset in batches:
-                for i, batch in enumerate(train_data_loader, 1):
-                    images, _ = batch
-                    images = images.to(device)
-                    # generate some random noise:
-                    noise = th.randn(images.shape[0], latent_size).to(device)
-
-                    # optimize discriminator:
-                    dis_loss = pro_gan.optimize_discriminator(noise, images, current_depth, alpha)
-
-                    # optimize generator:
-                    gen_loss = pro_gan.optimize_generator(noise, current_depth, alpha)
-
-                    print("Batch: %d  dis_loss: %.3f  gen_loss: %.3f"
-                          % (i, dis_loss, gen_loss))
-
-                print("epoch finished ...")
-
-        print("training complete ...")
         
-# #TODO
-1.) ~~Add the conditional PRO_GAN module~~ (added in commit [ee7cf00b5f3e747c61e293a88f3e2f656117fcc2](https://github.com/akanimax/pro_gan_pytorch/commit/ee7cf00b5f3e747c61e293a88f3e2f656117fcc2))<br>
-2.) Setup the travis - checker. (I have to figure out some good unit tests too :D lulz!) <br>
-3.) Write an informative README.rst (although it is rarely read) <br>
+        # ======================================================================
+        # This line trains the PRO-GAN
+        # ======================================================================
+        pro_gan.train(
+            dataset=dataset,
+            epochs=num_epochs,
+            fade_in_percentage=fade_ins,
+            batch_sizes=batch_sizes
+        )
+        # ======================================================================
+
+        
+        
+# Exemplar Samples :)
+### Training gif (fixed latent points):
+<p align="center">
+<img align="center" src ="https://github.com/akanimax/pro_gan_pytorch/blob/master/samples/celebA-HQ.gif"
+ height=150% width=150%/>
+</p>
+<br>
+
+### Trained Image sheet:
+<p align="center">
+<img align="center" src ="https://github.com/akanimax/pro_gan_pytorch/blob/master/samples/celebA-HQ.png"
+ height=80% width=80%/>
+</p>
+<br>
+
+## Other links
+medium blog -> https://medium.com/@animeshsk3/the-unprecedented-effectiveness-of-progressive-growing-of-gans-37475c88afa3
+<br>
+Full training video -> https://www.youtube.com/watch?v=lzTm6Lq76Mo 
+
+## Thanks
+Please feel free to open PRs / issues / suggestions here if 
+you train on other datasets using this architecture. 
+<br>
+
+Best regards, <br>
+@akanimax :)
