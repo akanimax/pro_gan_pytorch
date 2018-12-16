@@ -5,6 +5,25 @@ Quality, Stability, and Variation". <br>
 link -> https://arxiv.org/abs/1710.10196 <br>
 Trained Examples at -> https://github.com/akanimax/pro_gan_pytorch-examples
 
+# Exemplar Samples :)
+### Training gif (fixed latent points):
+<p align="center">
+<img align="center" src ="https://github.com/akanimax/pro_gan_pytorch/blob/master/samples/celebA-HQ.gif"/>
+</p>
+<br>
+
+### Trained Image sheet:
+<p align="center">
+<img align="center" src ="https://github.com/akanimax/pro_gan_pytorch/blob/master/samples/celebA-HQ.png"
+ height=80% width=80%/>
+</p>
+<br>
+
+## Other links
+medium blog -> https://medium.com/@animeshsk3/the-unprecedented-effectiveness-of-progressive-growing-of-gans-37475c88afa3
+<br>
+Full training video -> https://www.youtube.com/watch?v=lzTm6Lq76Mo
+
 # Steps to use:
 1.) Install your appropriate version of PyTorch. 
 The torch dependency in this package uses the most basic
@@ -89,29 +108,7 @@ install the "gpu" version of PyTorch.<br>
             fade_in_percentage=fade_ins,
             batch_sizes=batch_sizes
         )
-        # ======================================================================
-
-        
-        
-# Exemplar Samples :)
-### Training gif (fixed latent points):
-<p align="center">
-<img align="center" src ="https://github.com/akanimax/pro_gan_pytorch/blob/master/samples/celebA-HQ.gif"
- height=150% width=150%/>
-</p>
-<br>
-
-### Trained Image sheet:
-<p align="center">
-<img align="center" src ="https://github.com/akanimax/pro_gan_pytorch/blob/master/samples/celebA-HQ.png"
- height=80% width=80%/>
-</p>
-<br>
-
-## Other links
-medium blog -> https://medium.com/@animeshsk3/the-unprecedented-effectiveness-of-progressive-growing-of-gans-37475c88afa3
-<br>
-Full training video -> https://www.youtube.com/watch?v=lzTm6Lq76Mo 
+        # ====================================================================== 
 
 ## Thanks
 Please feel free to open PRs / issues / suggestions here if 
