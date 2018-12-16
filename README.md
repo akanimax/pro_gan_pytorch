@@ -8,7 +8,8 @@ Trained Examples at -> https://github.com/akanimax/pro_gan_pytorch-examples
 # Exemplar Samples :)
 ### Training gif (fixed latent points):
 <p align="center">
-<img align="center" src ="https://github.com/akanimax/pro_gan_pytorch/blob/master/samples/celebA-HQ.gif"/>
+<img align="center" src ="https://github.com/akanimax/pro_gan_pytorch/blob/master/samples/celebA-HQ.gif"
+     height=80% width=80%/>
 </p>
 <br>
 
