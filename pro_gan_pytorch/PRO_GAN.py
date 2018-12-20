@@ -636,20 +636,18 @@ class ProGAN:
                                                     str(i) + ".png")
 
                         # this is done to allow for more GPU space
-                        self.gen_optim.zero_grad()
-                        self.dis_optim.zero_grad()
                         with th.no_grad():
                             self.create_grid(
                                 samples=self.gen(
                                     fixed_input,
                                     current_depth,
                                     alpha
-                                ) if not self.use_ema
+                                ).detach() if not self.use_ema
                                 else self.gen_shadow(
                                     fixed_input,
                                     current_depth,
                                     alpha
-                                ),
+                                ).detach(),
                                 scale_factor=int(np.power(2, self.depth - current_depth - 1)),
                                 img_file=gen_img_file,
                             )

@@ -129,12 +129,11 @@ class WGAN_GP(GANLoss):
         merged.requires_grad = True
 
         # forward pass
-        op = self.dis.forward(merged, height, alpha)
+        op = self.dis(merged, height, alpha)
 
-        # obtain gradient of op wrt. merged
-        gradient = grad(outputs=op, inputs=merged, create_graph=True,
-                        retain_graph=True, grad_outputs=th.ones_like(op),
-                        only_inputs=True)[0]
+        # perform backward pass from op to merged for obtaining the gradients
+        op.backward(gradient=th.ones_like(op), create_graph=True)
+        gradient = merged.grad  # this is the gradient of the op wrt. merged
 
         # calculate the penalty using these gradients
         gradient = gradient.view(gradient.shape[0], -1)
@@ -327,13 +326,14 @@ class CondWGAN_GP(ConditionalGANLoss):
         merged = (epsilon * real_samps) + ((1 - epsilon) * fake_samps)
 
         # forward pass
-        op = self.dis.forward(merged, labels, height, alpha)
+        op = self.dis(merged, labels, height, alpha)
 
         # obtain gradient of op wrt. merged
         gradient = grad(outputs=op, inputs=merged, create_graph=True,
                         grad_outputs=th.ones_like(op), only_inputs=True)[0]
 
         # calculate the penalty using these gradients
+        gradient = gradient.view(batch_size, -1)
         penalty = reg_lambda * ((gradient.norm(p=2, dim=1) - 1) ** 2).mean()
 
         # return the calculated penalty:
