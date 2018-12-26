@@ -97,9 +97,10 @@ install the "gpu" version of PyTorch.<br>
         # ======================================================================
         # This line creates the PRO-GAN
         # ======================================================================
-        pro_gan = pg.ProGAN(depth=depth, latent_size=latent_size, device=device)
+        pro_gan = pg.ConditionalProGAN(num_classes=10, depth=depth, 
+                                       latent_size=latent_size, device=device)
         # ======================================================================
-        
+    
         # ======================================================================
         # This line trains the PRO-GAN
         # ======================================================================
@@ -109,7 +110,7 @@ install the "gpu" version of PyTorch.<br>
             fade_in_percentage=fade_ins,
             batch_sizes=batch_sizes
         )
-        # ====================================================================== 
+        # ======================================================================  
 
 ## Thanks
 Please feel free to open PRs / issues / suggestions here if 
