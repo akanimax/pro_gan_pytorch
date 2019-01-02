@@ -5,6 +5,39 @@ Quality, Stability, and Variation". <br>
 link -> https://arxiv.org/abs/1710.10196 <br>
 Trained Examples at -> https://github.com/akanimax/pro_gan_pytorch-examples
 
+# :star: [New] Pretrained Models:
+Please find the pretrained models under the `saved_models/` directory at the [drive_link](https://drive.google.com/drive/folders/1ex27dbFD_4Ycic6P9y3V9i63AvcuAe95)
+
+# :star: [New] Demo:
+The repository now includes a latent-space interpolation animation demo under the `samples/` directory.
+Just downlaod all the pretrained weights from the above mentioned drive_link and put them in the `samples/` 
+directory alongside the `demo.py` script. Note that there are a few tweakable parameters at the beginning
+of the `demo.py` script so that you can play around with it. <br>
+
+The demo loads up images for random points and then linearly interpolates among them to generate smooth 
+animation. You need to have a good GPU (atleast GTX 1070) to see formidable FPS in the demo. The demo however 
+can be optimized to do parallel generation of the images (It is completely sequential currently).
+
+In order to load weights in the Generator, the process is the standard process for PyTorch model loading.
+    
+    import torch as th
+    from pro_gan_pytorch import PRO_GAN as pg
+    
+    device = th.device("cuda" if th.cuda.is_available() else "cpu")
+    
+    gen = th.nn.DataParallel(pg.Generator(depth=9))
+    gen.load_state_dict(th.load("GAN_GEN_SHADOW_8.pth", map_location=str(device)))
+
+### Notes for the Above code:
+1. Create a new generator module using pg (depth = 9 means the generating resolution will be 1024 x 1024). <br>
+2. Note that DataParallel is required here because I have trained the models on Multiple GPUs. <br>
+   you wouldn't need to wrap the Generator into a DataParallel if you train on CPU. <br>
+   Which I don't think is feasible for a GAN in general (:D). <br>
+3. You can simply load the weights into the gen as it is implemented as a PyTorch Module. <br>
+4. map_location arg takes care of Device mismatch. As in, if you trained on GPU but inferring on CPU. <br>
+5. **Also note that we need to use the `GAN_GEN_SHADOW_8.pth` model and not `GAN_GEN_8.pth`.** <br>
+   **The shadow model contains the Exponential Moving Averaged weights (stable weights).**
+
 # Exemplar Samples :)
 ### Training gif (fixed latent points):
 <p align="center">
