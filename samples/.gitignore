@@ -1,2 +1,5 @@
 # ignore the full version of the training video
 pro-gan_training_video_smaller.mp4
+
+# also ignore the trained model weights
+GAN_GEN_SHADOW_8.pth

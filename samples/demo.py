@@ -22,10 +22,10 @@ gen.load_state_dict(th.load("GAN_GEN_SHADOW_8.pth", map_location=str(device)))
 def get_image(point):
     img = gen(point, depth=depth, alpha=1).detach().squeeze(0).permute(1, 2, 0)
     img = (img - img.min()) / (img.max() - img.min())
-    return img
+    return img.cpu().numpy()
 
 # generate the set of points:
-fixed_points = th.randn(num_points, 512)
+fixed_points = th.randn(num_points, 512).to(device)
 points = []  # start with an empty list
 for i in range(len(fixed_points) - 1):
     pt_1 = fixed_points[i].view(1, -1)
