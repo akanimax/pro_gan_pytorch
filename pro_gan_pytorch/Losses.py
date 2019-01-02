@@ -117,8 +117,6 @@ class WGAN_GP(GANLoss):
         :param reg_lambda: regularisation lambda
         :return: tensor (gradient penalty)
         """
-        from torch.autograd import grad
-
         batch_size = real_samps.shape[0]
 
         # generate random epsilon
@@ -200,8 +198,8 @@ class HingeGAN(GANLoss):
         super().__init__(dis)
 
     def dis_loss(self, real_samps, fake_samps, height, alpha):
-        r_preds, r_mus, r_sigmas = self.dis(real_samps, height, alpha)
-        f_preds, f_mus, f_sigmas = self.dis(fake_samps, height, alpha)
+        r_preds = self.dis(real_samps, height, alpha)
+        f_preds = self.dis(fake_samps, height, alpha)
 
         loss = (th.mean(th.nn.ReLU()(1 - r_preds)) +
                 th.mean(th.nn.ReLU()(1 + f_preds)))
@@ -399,8 +397,8 @@ class CondHingeGAN(ConditionalGANLoss):
         super().__init__(dis)
 
     def dis_loss(self, real_samps, fake_samps, labels, height, alpha):
-        r_preds, r_mus, r_sigmas = self.dis(real_samps, labels, height, alpha)
-        f_preds, f_mus, f_sigmas = self.dis(fake_samps, labels, height, alpha)
+        r_preds = self.dis(real_samps, labels, height, alpha)
+        f_preds = self.dis(fake_samps, labels, height, alpha)
 
         loss = (th.mean(th.nn.ReLU()(1 - r_preds)) +
                 th.mean(th.nn.ReLU()(1 + f_preds)))
