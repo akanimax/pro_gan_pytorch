@@ -168,11 +168,11 @@ class LSGAN(GANLoss):
         super().__init__(dis)
 
     def dis_loss(self, real_samps, fake_samps, height, alpha):
-        return 0.5 * (((th.mean(self.dis(real_samps, height, alpha)) - 1) ** 2)
-                      + (th.mean(self.dis(fake_samps, height, alpha))) ** 2)
+        return 0.5 * (th.mean((self.dis(real_samps, height, alpha) - 1) ** 2)
+                      + (th.mean(self.dis(fake_samps, height, alpha) ** 2)))
 
     def gen_loss(self, _, fake_samps, height, alpha):
-        return 0.5 * ((th.mean(self.dis(fake_samps, height, alpha)) - 1) ** 2)
+        return 0.5 * (th.mean((self.dis(fake_samps, height, alpha) - 1) ** 2))
 
 
 class LSGAN_SIGMOID(GANLoss):
@@ -182,14 +182,14 @@ class LSGAN_SIGMOID(GANLoss):
 
     def dis_loss(self, real_samps, fake_samps, height, alpha):
         from torch.nn.functional import sigmoid
-        real_scores = th.mean(sigmoid(self.dis(real_samps, height, alpha)))
-        fake_scores = th.mean(sigmoid(self.dis(fake_samps, height, alpha)))
-        return 0.5 * (((real_scores - 1) ** 2) + (fake_scores ** 2))
+        real_scores = sigmoid(self.dis(real_samps, height, alpha))
+        fake_scores = sigmoid(self.dis(fake_samps, height, alpha))
+        return 0.5 * ((th.mean((real_scores - 1) ** 2)) + th.mean(fake_scores ** 2))
 
     def gen_loss(self, _, fake_samps, height, alpha):
         from torch.nn.functional import sigmoid
-        scores = th.mean(sigmoid(self.dis(fake_samps, height, alpha)))
-        return 0.5 * ((scores - 1) ** 2)
+        scores = sigmoid(self.dis(fake_samps, height, alpha))
+        return 0.5 * (th.mean((scores - 1) ** 2))
 
 
 class HingeGAN(GANLoss):
@@ -367,11 +367,11 @@ class CondLSGAN(ConditionalGANLoss):
         super().__init__(dis)
 
     def dis_loss(self, real_samps, fake_samps, labels, height, alpha):
-        return 0.5 * (((th.mean(self.dis(real_samps, labels, height, alpha)) - 1) ** 2)
-                      + (th.mean(self.dis(fake_samps, labels, height, alpha))) ** 2)
+        return 0.5 * ((th.mean((self.dis(real_samps, labels, height, alpha) - 1) ** 2))
+                      + (th.mean(self.dis(fake_samps, labels, height, alpha) ** 2)))
 
     def gen_loss(self, _, fake_samps, labels, height, alpha):
-        return 0.5 * ((th.mean(self.dis(fake_samps, labels, height, alpha)) - 1) ** 2)
+        return 0.5 * (th.mean((self.dis(fake_samps, labels, height, alpha) - 1) ** 2))
 
 
 class CondLSGAN_SIGMOID(ConditionalGANLoss):
@@ -381,14 +381,14 @@ class CondLSGAN_SIGMOID(ConditionalGANLoss):
 
     def dis_loss(self, real_samps, fake_samps, labels, height, alpha):
         from torch.nn.functional import sigmoid
-        real_scores = th.mean(sigmoid(self.dis(real_samps, labels, height, alpha)))
-        fake_scores = th.mean(sigmoid(self.dis(fake_samps, labels, height, alpha)))
-        return 0.5 * (((real_scores - 1) ** 2) + (fake_scores ** 2))
+        real_scores = sigmoid(self.dis(real_samps, labels, height, alpha))
+        fake_scores = sigmoid(self.dis(fake_samps, labels, height, alpha))
+        return 0.5 * (th.mean((real_scores - 1) ** 2) + th.mean(fake_scores ** 2))
 
     def gen_loss(self, _, fake_samps, labels, height, alpha):
         from torch.nn.functional import sigmoid
-        scores = th.mean(sigmoid(self.dis(fake_samps, labels, height, alpha)))
-        return 0.5 * ((scores - 1) ** 2)
+        scores = sigmoid(self.dis(fake_samps, labels, height, alpha))
+        return 0.5 * (th.mean((scores - 1) ** 2))
 
 
 class CondHingeGAN(ConditionalGANLoss):
