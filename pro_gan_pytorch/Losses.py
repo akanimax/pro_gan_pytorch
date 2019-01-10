@@ -124,16 +124,15 @@ class WGAN_GP(GANLoss):
 
         # create the merge of both real and fake samples
         merged = epsilon * real_samps + ((1 - epsilon) * fake_samps)
-        merged = merged.cuda(fake_samps.device)
-        merged = th.autograd.Variable(merged, requires_grad=True)
+        merged.requires_grad_(True)
 
         # forward pass
         op = self.dis(merged, height, alpha)
 
         # perform backward pass from op to merged for obtaining the gradients
         gradient = th.autograd.grad(outputs=op, inputs=merged,
-                                    grad_outputs=th.ones(op.size()).cuda(fake_samps.device),
-                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
+                                    grad_outputs=th.ones_like(op), create_graph=True,
+                                    retain_graph=True, only_inputs=True)[0]
 
         # calculate the penalty using these gradients
         gradient = gradient.view(gradient.shape[0], -1)
@@ -324,13 +323,15 @@ class CondWGAN_GP(ConditionalGANLoss):
 
         # create the merge of both real and fake samples
         merged = (epsilon * real_samps) + ((1 - epsilon) * fake_samps)
+        merged.requires_grad_(True)
 
         # forward pass
         op = self.dis(merged, labels, height, alpha)
 
         # obtain gradient of op wrt. merged
-        gradient = grad(outputs=op, inputs=merged, create_graph=True,
-                        grad_outputs=th.ones_like(op), only_inputs=True)[0]
+        gradient = grad(outputs=op, inputs=merged,
+                        grad_outputs=th.ones_like(op), create_graph=True,
+                        retain_graph=True, only_inputs=True)[0]
 
         # calculate the penalty using these gradients
         gradient = gradient.view(batch_size, -1)
@@ -349,7 +350,6 @@ class CondWGAN_GP(ConditionalGANLoss):
 
         if self.use_gp:
             # calculate the WGAN-GP (gradient penalty)
-            fake_samps.requires_grad = True  # turn on gradients for penalty calculation
             gp = self.__gradient_penalty(real_samps, fake_samps,
                                          labels, height, alpha)
             loss += gp
