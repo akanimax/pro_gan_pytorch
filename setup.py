@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='pro-gan-pth',
-    version='2.1',
+    version='2.1.1',
     packages=find_packages(".", exclude=("test", "samples")),
     url='https://github.com/akanimax/pro_gan_pytorch',
     license='MIT',
