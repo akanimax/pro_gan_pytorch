@@ -3,12 +3,14 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from pro_gan_pytorch import PRO_GAN as pg
 
+th.manual_seed(1)
+
 # ==========================================================================
 # Tweakable parameters
 # ==========================================================================
 depth = 8
-num_points = 10
-transition_points = 90
+num_points = 12
+transition_points = 30
 # ==========================================================================
 
 # create the device for running the demo:
