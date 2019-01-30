@@ -3,3 +3,8 @@ pro-gan_training_video_smaller.mp4
 
 # also ignore the trained model weights
 GAN_GEN_SHADOW_8.pth
+
+# ignore some huge videos:
+interpolation.mp4
+video_2.gif
+video_3.gif

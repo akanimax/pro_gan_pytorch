@@ -3,8 +3,6 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from pro_gan_pytorch import PRO_GAN as pg
 
-th.manual_seed(1)
-
 # ==========================================================================
 # Tweakable parameters
 # ==========================================================================
@@ -30,6 +28,7 @@ def get_image(point):
 
 # generate the set of points:
 fixed_points = th.randn(num_points, 512).to(device)
+fixed_points = (fixed_points / fixed_points.norm(dim=1, keepdim=True)) * (512 ** 0.5)
 points = []  # start with an empty list
 for i in range(len(fixed_points) - 1):
     pt_1 = fixed_points[i].view(1, -1)
@@ -37,6 +36,7 @@ for i in range(len(fixed_points) - 1):
     direction = pt_2 - pt_1
     for j in range(transition_points):
         pt = pt_1 + ((direction / transition_points) * j)
+        pt = (pt / pt.norm()) * (512 ** 0.5)
         points.append(pt)
     # also append the final point:
     points.append(pt_2)
