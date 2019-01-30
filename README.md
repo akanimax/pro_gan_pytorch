@@ -9,6 +9,12 @@ Trained Examples at -> https://github.com/akanimax/pro_gan_pytorch-examples
 Please find the pretrained models under the `saved_models/` directory at the [drive_link](https://drive.google.com/drive/folders/1ex27dbFD_4Ycic6P9y3V9i63AvcuAe95)
 
 # :star: [New] Demo:
+<p align="center">
+<img align="center" src ="https://github.com/akanimax/pro_gan_pytorch/blob/master/samples/demo.gif"
+ height=80% width=80%/>
+</p>
+<br>
+
 The repository now includes a latent-space interpolation animation demo under the `samples/` directory.
 Just downlaod all the pretrained weights from the above mentioned drive_link and put them in the `samples/` 
 directory alongside the `demo.py` script. Note that there are a few tweakable parameters at the beginning
