@@ -52,9 +52,14 @@ In order to load weights in the Generator, the process is the standard process f
 </p>
 <br>
 
-### Trained Image sheet:
+### Generated Samples:
 <p align="center">
-<img align="center" src ="https://github.com/akanimax/pro_gan_pytorch/blob/master/samples/celebA-HQ.png"
+<img align="center" src ="https://github.com/akanimax/pro_gan_pytorch/blob/master/samples/faces_sheet_1.png"
+ height=80% width=80%/>
+</p>
+<br>
+<p align="center">
+<img align="center" src ="https://github.com/akanimax/pro_gan_pytorch/blob/master/samples/faces_sheet_2.png"
  height=80% width=80%/>
 </p>
 <br>
