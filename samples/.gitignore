@@ -8,3 +8,10 @@ GAN_GEN_SHADOW_8.pth
 interpolation.mp4
 video_2.gif
 video_3.gif
+
+# ignore the new latent_space interpolation video
+new_interp.mp4
+
+frames_pro/
+frames_mine/
+M_GAN_GEN_SHADOW_8.pth
