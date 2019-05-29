@@ -16,7 +16,7 @@ Please find the pretrained models under the `saved_models/` directory at the [dr
 <br>
 
 The repository now includes a latent-space interpolation animation demo under the `samples/` directory.
-Just downlaod all the pretrained weights from the above mentioned drive_link and put them in the `samples/` 
+Just download all the pretrained weights from the above mentioned drive_link and put them in the `samples/` 
 directory alongside the `demo.py` script. Note that there are a few tweakable parameters at the beginning
 of the `demo.py` script so that you can play around with it. <br>
 
