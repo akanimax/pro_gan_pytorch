@@ -36,6 +36,10 @@ def parse_arguments():
                         default=9,
                         help="latent size for the generator")
 
+    parser.add_argument("--out_depth", action="store", type=int,
+                        default=6,
+                        help="output depth of images. **Starts from 0")
+
     parser.add_argument("--time", action="store", type=float,
                         default=300,
                         help="Number of seconds for the video to make")
@@ -107,7 +111,7 @@ def main(args):
         latent = th.unsqueeze(latent, dim=0)
 
         # generate the image for this point:
-        img = get_image(generator, latent, args.depth - 1, 1)
+        img = get_image(generator, latent, args.out_depth, 1)
 
         # save the image:
         plt.imsave(os.path.join(args.out_dir, str(global_frame_counter) + ".png"), img)

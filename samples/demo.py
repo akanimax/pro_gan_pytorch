@@ -27,6 +27,10 @@ def parse_arguments():
     parser.add_argument("--depth", action="store", type=int,
                         default=9, help="Depth of the network")
 
+    parser.add_argument("--out_depth", action="store", type=int,
+                        default=6,
+                        help="output depth of images. **Starts from 0")
+
     parser.add_argument("--latent_size", action="store", type=int,
                         default=512, help="Latent size for the network")
 
@@ -105,13 +109,13 @@ def main(args):
 
     fig, ax = plt.subplots()
     plt.axis("off")
-    shower = plt.imshow(get_image(gen, start_point, args.depth - 1, 1))
+    shower = plt.imshow(get_image(gen, start_point, args.out_depth, 1))
 
     def init():
         return shower,
 
     def update(point):
-        shower.set_data(get_image(gen, th.unsqueeze(point, dim=0), args.depth - 1, 1))
+        shower.set_data(get_image(gen, th.unsqueeze(point, dim=0), args.out_depth, 1))
         return shower,
 
     # define the animation function
