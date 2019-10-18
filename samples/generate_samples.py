@@ -17,6 +17,8 @@ cudnn.benchmark = True
 # set the manual seed
 # th.manual_seed(3)
 
+# define the device for the training script
+device = th.device("cuda" if th.cuda.is_available() else "cpu")
 
 def parse_arguments():
     """
