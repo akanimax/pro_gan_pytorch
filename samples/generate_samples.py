@@ -89,7 +89,7 @@ def main(args):
     print("Loading the generator weights from:", args.generator_file)
     # load the weights into it
     gen.load_state_dict(
-        th.load(args.generator_file)
+        th.load(args.generator_file, map_location=str(device))
     )
 
     # path for saving the files:

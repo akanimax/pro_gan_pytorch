@@ -84,7 +84,7 @@ def main(args):
 
     # load the trained generator weights
     print("loading the trained generator weights ...")
-    generator.load_state_dict(th.load(args.generator_file))
+    generator.load_state_dict(th.load(args.generator_file, str(device)))
 
     # total_frames in the video:
     total_frames = int(args.time * args.fps)
