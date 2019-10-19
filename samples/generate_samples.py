@@ -17,6 +17,8 @@ cudnn.benchmark = True
 # set the manual seed
 # th.manual_seed(3)
 
+# define the device for the training script
+device = th.device("cuda" if th.cuda.is_available() else "cpu")
 
 def parse_arguments():
     """
@@ -87,7 +89,7 @@ def main(args):
     print("Loading the generator weights from:", args.generator_file)
     # load the weights into it
     gen.load_state_dict(
-        th.load(args.generator_file)
+        th.load(args.generator_file, map_location=str(device))
     )
 
     # path for saving the files:
