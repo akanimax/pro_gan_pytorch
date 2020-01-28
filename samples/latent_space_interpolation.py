@@ -3,13 +3,14 @@
 import torch as th
 import numpy as np
 import argparse
-import matplotlib.pyplot as plt
 import os
 from torch.backends import cudnn
 from torchvision.utils import make_grid
 from math import sqrt, ceil
 from tqdm import tqdm
 from scipy.ndimage import gaussian_filter
+import cv2
+
 
 # turn fast mode on
 cudnn.benchmark = True
@@ -54,13 +55,21 @@ def parse_arguments():
                         default="interp_animation_frames/",
                         help="path to the output directory for the frames")
 
+    parser.add_argument("--video_only", action='store_true',
+                        help="Pass this to skip saving of individual frames.")
+
+    parser.add_argument("--video_name", action="store", type=str,
+                        default="", help="Filename of video")
+
     args = parser.parse_args()
 
     return args
 
+
 def adjust_dynamic_range(data, drange_in=(-1, 1), drange_out=(0, 1)):
     if drange_in != drange_out:
-        scale = (np.float32(drange_out[1]) - np.float32(drange_out[0])) / (np.float32(drange_in[1]) - np.float32(drange_in[0]))
+        scale = (np.float32(drange_out[1]) - np.float32(drange_out[0])) / (
+            np.float32(drange_in[1]) - np.float32(drange_in[0]))
         bias = (np.float32(drange_out[0]) - np.float32(drange_in[0]) * scale)
         data = data * scale + bias
     return th.clamp(data, min=0, max=1)
@@ -96,31 +105,51 @@ def main(args):
     # Let's create the animation video from the latent space interpolation
     # all latent vectors:
     all_latents = th.randn(total_frames, args.latent_size).to(device)
-    all_latents = gaussian_filter(all_latents.cpu(), [args.smoothing * args.fps, 0])
+    all_latents = gaussian_filter(
+        all_latents.cpu(), [args.smoothing * args.fps, 0])
     all_latents = th.from_numpy(all_latents)
     all_latents = all_latents / all_latents.norm(dim=-1, keepdim=True) \
-                  * (sqrt(args.latent_size))
+        * (sqrt(args.latent_size))
 
     # create output directory
     os.makedirs(args.out_dir, exist_ok=True)
 
     global_frame_counter = 1
+
+    # If we're saving a video, make the video object
+    if(args.video_name):
+        width = 2**(args.depth+1)
+        out_file = os.path.join(args.out_dir, args.video_name)
+        video_out = cv2.VideoWriter(args.video_name, cv2.VideoWriter_fourcc(
+            *'mp4v'), args.fps, (width, width))
+
     # Run the main loop for the interpolation:
     print("Generating the video frames ...")
     for latent in tqdm(all_latents):
         latent = th.unsqueeze(latent, dim=0)
 
         # generate the image for this point:
-        img = get_image(generator, latent, args.out_depth, 1)
+        img = get_image(generator, latent, args.out_depth, 1) * 255
 
-        # save the image:
-        plt.imsave(os.path.join(args.out_dir, str(global_frame_counter) + ".png"), img)
+        if not args.video_only:
+            cv2.imwrite(os.path.join(
+                args.out_dir, "{:05d}.png".format(global_frame_counter)), img)
 
-        # increment the counter:
+        # Make an image of unsigned 8-bit integers for OpenCV
+        if(args.video_name):
+            img_int = img.astype(np.uint8)
+            video_out.write(img_int)
+
+        # Increment the counter
         global_frame_counter += 1
 
     # video frames have been generated
-    print("Video frames have been generated at:", args.out_dir)
+    if not args.video_only:
+        print("Video frames have been generated at:", args.out_dir)
+
+    if(args.video_name):
+        print('Video saved to {}'.format(out_file))
+        video_out.release()
 
 
 if __name__ == "__main__":
