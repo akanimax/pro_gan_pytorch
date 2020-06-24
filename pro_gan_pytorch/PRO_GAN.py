@@ -15,6 +15,7 @@ import torch as th
 # can be used with ProGAN, ConditionalProGAN or standalone (for inference)
 # ========================================================================================
 
+
 class Generator(th.nn.Module):
     """ Generator of the GAN network """
 
@@ -31,10 +32,13 @@ class Generator(th.nn.Module):
 
         super(Generator, self).__init__()
 
-        assert latent_size != 0 and ((latent_size & (latent_size - 1)) == 0), \
-            "latent size not a power of 2"
+        assert latent_size != 0 and (
+            (latent_size & (latent_size - 1)) == 0
+        ), "latent size not a power of 2"
         if depth >= 4:
-            assert latent_size >= np.power(2, depth - 4), "latent size will diminish to zero"
+            assert latent_size >= np.power(
+                2, depth - 4
+            ), "latent size will diminish to zero"
 
         # state of the generator:
         self.use_eql = use_eql
@@ -50,10 +54,13 @@ class Generator(th.nn.Module):
         # create the ToRGB layers for various outputs:
         if self.use_eql:
             from pro_gan_pytorch.CustomLayers import _equalized_conv2d
-            self.toRGB = lambda in_channels: \
-                _equalized_conv2d(in_channels, 3, (1, 1), bias=True)
+
+            self.toRGB = lambda in_channels: _equalized_conv2d(
+                in_channels, 3, (1, 1), bias=True
+            )
         else:
             from torch.nn import Conv2d
+
             self.toRGB = lambda in_channels: Conv2d(in_channels, 3, (1, 1), bias=True)
 
         self.rgb_converters = ModuleList([self.toRGB(self.latent_size)])
@@ -61,14 +68,15 @@ class Generator(th.nn.Module):
         # create the remaining layers
         for i in range(self.depth - 1):
             if i <= 2:
-                layer = GenGeneralConvBlock(self.latent_size,
-                                            self.latent_size, use_eql=self.use_eql)
+                layer = GenGeneralConvBlock(
+                    self.latent_size, self.latent_size, use_eql=self.use_eql
+                )
                 rgb = self.toRGB(self.latent_size)
             else:
                 layer = GenGeneralConvBlock(
                     int(self.latent_size // np.power(2, i - 3)),
                     int(self.latent_size // np.power(2, i - 2)),
-                    use_eql=self.use_eql
+                    use_eql=self.use_eql,
                 )
                 rgb = self.toRGB(int(self.latent_size // np.power(2, i - 2)))
             self.layers.append(layer)
@@ -91,7 +99,7 @@ class Generator(th.nn.Module):
         y = self.initial_block(x)
 
         if depth > 0:
-            for block in self.layers[:depth - 1]:
+            for block in self.layers[: depth - 1]:
                 y = block(y)
 
             residual = self.rgb_converters[depth - 1](self.temporaryUpsampler(y))
@@ -111,6 +119,7 @@ class Generator(th.nn.Module):
 # Note this cannot be used with ConditionalProGAN
 # ========================================================================================
 
+
 class Discriminator(th.nn.Module):
     """ Discriminator of the GAN """
 
@@ -127,10 +136,13 @@ class Discriminator(th.nn.Module):
 
         super(Discriminator, self).__init__()
 
-        assert feature_size != 0 and ((feature_size & (feature_size - 1)) == 0), \
-            "latent size not a power of 2"
+        assert feature_size != 0 and (
+            (feature_size & (feature_size - 1)) == 0
+        ), "latent size not a power of 2"
         if height >= 4:
-            assert feature_size >= np.power(2, height - 4), "feature size cannot be produced"
+            assert feature_size >= np.power(
+                2, height - 4
+            ), "feature size cannot be produced"
 
         # create state of the object
         self.use_eql = use_eql
@@ -145,11 +157,16 @@ class Discriminator(th.nn.Module):
         # create the fromRGB layers for various inputs:
         if self.use_eql:
             from pro_gan_pytorch.CustomLayers import _equalized_conv2d
-            self.fromRGB = lambda out_channels: \
-                _equalized_conv2d(3, out_channels, (1, 1), bias=True)
+
+            self.fromRGB = lambda out_channels: _equalized_conv2d(
+                3, out_channels, (1, 1), bias=True
+            )
         else:
             from torch.nn import Conv2d
-            self.fromRGB = lambda out_channels: Conv2d(3, out_channels, (1, 1), bias=True)
+
+            self.fromRGB = lambda out_channels: Conv2d(
+                3, out_channels, (1, 1), bias=True
+            )
 
         self.rgb_to_features = ModuleList([self.fromRGB(self.feature_size)])
 
@@ -159,12 +176,13 @@ class Discriminator(th.nn.Module):
                 layer = DisGeneralConvBlock(
                     int(self.feature_size // np.power(2, i - 2)),
                     int(self.feature_size // np.power(2, i - 3)),
-                    use_eql=self.use_eql
+                    use_eql=self.use_eql,
                 )
                 rgb = self.fromRGB(int(self.feature_size // np.power(2, i - 2)))
             else:
-                layer = DisGeneralConvBlock(self.feature_size,
-                                            self.feature_size, use_eql=self.use_eql)
+                layer = DisGeneralConvBlock(
+                    self.feature_size, self.feature_size, use_eql=self.use_eql
+                )
                 rgb = self.fromRGB(self.feature_size)
 
             self.layers.append(layer)
@@ -187,13 +205,11 @@ class Discriminator(th.nn.Module):
         if height > 0:
             residual = self.rgb_to_features[height - 1](self.temporaryDownsampler(x))
 
-            straight = self.layers[height - 1](
-                self.rgb_to_features[height](x)
-            )
+            straight = self.layers[height - 1](self.rgb_to_features[height](x))
 
             y = (alpha * straight) + ((1 - alpha) * residual)
 
-            for block in reversed(self.layers[:height - 1]):
+            for block in reversed(self.layers[: height - 1]):
                 y = block(y)
         else:
             y = self.rgb_to_features[0](x)
@@ -209,6 +225,7 @@ class Discriminator(th.nn.Module):
 # can be used with ConditionalProGAN or standalone (for inference)
 # Note that this is not to be used with ProGAN
 # ========================================================================================
+
 
 class ConditionalDiscriminator(th.nn.Module):
     """ Discriminator of the GAN """
@@ -227,10 +244,13 @@ class ConditionalDiscriminator(th.nn.Module):
 
         super(ConditionalDiscriminator, self).__init__()
 
-        assert feature_size != 0 and ((feature_size & (feature_size - 1)) == 0), \
-            "latent size not a power of 2"
+        assert feature_size != 0 and (
+            (feature_size & (feature_size - 1)) == 0
+        ), "latent size not a power of 2"
         if height >= 4:
-            assert feature_size >= np.power(2, height - 4), "feature size cannot be produced"
+            assert feature_size >= np.power(
+                2, height - 4
+            ), "feature size cannot be produced"
 
         # create state of the object
         self.use_eql = use_eql
@@ -238,8 +258,9 @@ class ConditionalDiscriminator(th.nn.Module):
         self.feature_size = feature_size
         self.num_classes = num_classes
 
-        self.final_block = ConDisFinalBlock(self.feature_size, self.num_classes,
-                                            use_eql=self.use_eql)
+        self.final_block = ConDisFinalBlock(
+            self.feature_size, self.num_classes, use_eql=self.use_eql
+        )
 
         # create a module list of the other required general convolution blocks
         self.layers = ModuleList([])  # initialize to empty list
@@ -247,11 +268,16 @@ class ConditionalDiscriminator(th.nn.Module):
         # create the fromRGB layers for various inputs:
         if self.use_eql:
             from pro_gan_pytorch.CustomLayers import _equalized_conv2d
-            self.fromRGB = lambda out_channels: \
-                _equalized_conv2d(3, out_channels, (1, 1), bias=True)
+
+            self.fromRGB = lambda out_channels: _equalized_conv2d(
+                3, out_channels, (1, 1), bias=True
+            )
         else:
             from torch.nn import Conv2d
-            self.fromRGB = lambda out_channels: Conv2d(3, out_channels, (1, 1), bias=True)
+
+            self.fromRGB = lambda out_channels: Conv2d(
+                3, out_channels, (1, 1), bias=True
+            )
 
         self.rgb_to_features = ModuleList([self.fromRGB(self.feature_size)])
 
@@ -261,12 +287,13 @@ class ConditionalDiscriminator(th.nn.Module):
                 layer = DisGeneralConvBlock(
                     int(self.feature_size // np.power(2, i - 2)),
                     int(self.feature_size // np.power(2, i - 3)),
-                    use_eql=self.use_eql
+                    use_eql=self.use_eql,
                 )
                 rgb = self.fromRGB(int(self.feature_size // np.power(2, i - 2)))
             else:
-                layer = DisGeneralConvBlock(self.feature_size,
-                                            self.feature_size, use_eql=self.use_eql)
+                layer = DisGeneralConvBlock(
+                    self.feature_size, self.feature_size, use_eql=self.use_eql
+                )
                 rgb = self.fromRGB(self.feature_size)
 
             self.layers.append(layer)
@@ -291,13 +318,11 @@ class ConditionalDiscriminator(th.nn.Module):
         if height > 0:
             residual = self.rgb_to_features[height - 1](self.temporaryDownsampler(x))
 
-            straight = self.layers[height - 1](
-                self.rgb_to_features[height](x)
-            )
+            straight = self.layers[height - 1](self.rgb_to_features[height](x))
 
             y = (alpha * straight) + ((1 - alpha) * residual)
 
-            for block in reversed(self.layers[:height - 1]):
+            for block in reversed(self.layers[: height - 1]):
                 y = block(y)
         else:
             y = self.rgb_to_features[0](x)
@@ -311,13 +336,26 @@ class ConditionalDiscriminator(th.nn.Module):
 # ProGAN Module (Unconditional)
 # ========================================================================================
 
+
 class ProGAN:
     """ Wrapper around the Generator and the Discriminator """
 
-    def __init__(self, depth=7, latent_size=512, learning_rate=0.001, beta_1=0,
-                 beta_2=0.99, eps=1e-8, drift=0.001, n_critic=1, use_eql=True,
-                 loss="wgan-gp", use_ema=True, ema_decay=0.999,
-                 device=th.device("cpu")):
+    def __init__(
+        self,
+        depth=7,
+        latent_size=512,
+        learning_rate=0.001,
+        beta_1=0,
+        beta_2=0.99,
+        eps=1e-8,
+        drift=0.001,
+        n_critic=1,
+        use_eql=True,
+        loss="wgan-gp",
+        use_ema=True,
+        ema_decay=0.999,
+        device=th.device("cpu"),
+    ):
         """
         constructor for the class
         :param depth: depth of the GAN (will be used for each generator and discriminator)
@@ -363,11 +401,13 @@ class ProGAN:
         self.drift = drift
 
         # define the optimizers for the discriminator and generator
-        self.gen_optim = Adam(self.gen.parameters(), lr=learning_rate,
-                              betas=(beta_1, beta_2), eps=eps)
+        self.gen_optim = Adam(
+            self.gen.parameters(), lr=learning_rate, betas=(beta_1, beta_2), eps=eps
+        )
 
-        self.dis_optim = Adam(self.dis.parameters(), lr=learning_rate,
-                              betas=(beta_1, beta_2), eps=eps)
+        self.dis_optim = Adam(
+            self.dis.parameters(), lr=learning_rate, betas=(beta_1, beta_2), eps=eps
+        )
 
         # define the loss function used for training the GAN
         self.loss = self.__setup_loss(loss)
@@ -443,8 +483,9 @@ class ProGAN:
         ds_real_samples = AvgPool2d(down_sample_factor)(real_batch)
 
         if depth > 0:
-            prior_ds_real_samples = interpolate(AvgPool2d(prior_downsample_factor)(real_batch),
-                                                scale_factor=2)
+            prior_ds_real_samples = interpolate(
+                AvgPool2d(prior_downsample_factor)(real_batch), scale_factor=2
+            )
         else:
             prior_ds_real_samples = ds_real_samples
 
@@ -530,14 +571,29 @@ class ProGAN:
             samples = interpolate(samples, scale_factor=scale_factor)
 
         # save the images:
-        save_image(samples, img_file, nrow=int(np.sqrt(len(samples))),
-                   normalize=True, scale_each=True)
+        save_image(
+            samples,
+            img_file,
+            nrow=int(np.sqrt(len(samples))),
+            normalize=True,
+            scale_each=True,
+        )
 
-    def train(self, dataset, epochs, batch_sizes,
-              fade_in_percentage, num_samples=16,
-              start_depth=0, num_workers=3, feedback_factor=100,
-              log_dir="./models/", sample_dir="./samples/", save_dir="./models/",
-              checkpoint_factor=1):
+    def train(
+        self,
+        dataset,
+        epochs,
+        batch_sizes,
+        fade_in_percentage,
+        num_samples=16,
+        start_depth=0,
+        num_workers=3,
+        feedback_factor=100,
+        log_dir="./models/",
+        sample_dir="./samples/",
+        save_dir="./models/",
+        checkpoint_factor=1,
+    ):
         """
         Utility method for training the ProGAN. Note that you don't have to necessarily use this
         you can use the optimize_generator and optimize_discriminator for your own training routine.
@@ -594,8 +650,11 @@ class ProGAN:
                 print("\nEpoch: %d" % epoch)
                 total_batches = len(iter(data))
 
-                fader_point = int((fade_in_percentage[current_depth] / 100)
-                                  * epochs[current_depth] * total_batches)
+                fader_point = int(
+                    (fade_in_percentage[current_depth] / 100)
+                    * epochs[current_depth]
+                    * total_batches
+                )
 
                 step = 0  # counter for number of iterations
 
@@ -606,49 +665,70 @@ class ProGAN:
                     # extract current batch of data for training
                     images = batch.to(self.device)
 
-                    gan_input = th.randn(images.shape[0], self.latent_size).to(self.device)
+                    gan_input = th.randn(images.shape[0], self.latent_size).to(
+                        self.device
+                    )
 
                     # optimize the discriminator:
-                    dis_loss = self.optimize_discriminator(gan_input, images,
-                                                           current_depth, alpha)
+                    dis_loss = self.optimize_discriminator(
+                        gan_input, images, current_depth, alpha
+                    )
 
                     # optimize the generator:
-                    gen_loss = self.optimize_generator(gan_input, images, current_depth, alpha)
+                    gen_loss = self.optimize_generator(
+                        gan_input, images, current_depth, alpha
+                    )
 
                     # provide a loss feedback
                     if i % int(total_batches / feedback_factor) == 0 or i == 1:
                         elapsed = time.time() - global_time
                         elapsed = str(datetime.timedelta(seconds=elapsed))
-                        print("Elapsed: [%s]  batch: %d  d_loss: %f  g_loss: %f"
-                              % (elapsed, i, dis_loss, gen_loss))
+                        print(
+                            "Elapsed: [%s]  batch: %d  d_loss: %f  g_loss: %f"
+                            % (elapsed, i, dis_loss, gen_loss)
+                        )
 
                         # also write the losses to the log file:
                         os.makedirs(log_dir, exist_ok=True)
-                        log_file = os.path.join(log_dir, "loss_" + str(current_depth) + ".log")
+                        log_file = os.path.join(
+                            log_dir, "loss_" + str(current_depth) + ".log"
+                        )
                         with open(log_file, "a") as log:
-                            log.write(str(step) + "\t" + str(dis_loss) +
-                                      "\t" + str(gen_loss) + "\n")
+                            log.write(
+                                str(step)
+                                + "\t"
+                                + str(dis_loss)
+                                + "\t"
+                                + str(gen_loss)
+                                + "\n"
+                            )
 
                         # create a grid of samples and save it
                         os.makedirs(sample_dir, exist_ok=True)
-                        gen_img_file = os.path.join(sample_dir, "gen_" + str(current_depth) +
-                                                    "_" + str(epoch) + "_" +
-                                                    str(i) + ".png")
+                        gen_img_file = os.path.join(
+                            sample_dir,
+                            "gen_"
+                            + str(current_depth)
+                            + "_"
+                            + str(epoch)
+                            + "_"
+                            + str(i)
+                            + ".png",
+                        )
 
                         # this is done to allow for more GPU space
                         with th.no_grad():
                             self.create_grid(
                                 samples=self.gen(
-                                    fixed_input,
-                                    current_depth,
-                                    alpha
-                                ).detach() if not self.use_ema
+                                    fixed_input, current_depth, alpha
+                                ).detach()
+                                if not self.use_ema
                                 else self.gen_shadow(
-                                    fixed_input,
-                                    current_depth,
-                                    alpha
+                                    fixed_input, current_depth, alpha
                                 ).detach(),
-                                scale_factor=int(np.power(2, self.depth - current_depth - 1)),
+                                scale_factor=int(
+                                    np.power(2, self.depth - current_depth - 1)
+                                ),
                                 img_file=gen_img_file,
                             )
 
@@ -659,16 +739,24 @@ class ProGAN:
                 stop = timeit.default_timer()
                 print("Time taken for epoch: %.3f secs" % (stop - start))
 
-                if epoch % checkpoint_factor == 0 or epoch == 1 or epoch == epochs[current_depth]:
+                if (
+                    epoch % checkpoint_factor == 0
+                    or epoch == 1
+                    or epoch == epochs[current_depth]
+                ):
                     os.makedirs(save_dir, exist_ok=True)
-                    gen_save_file = os.path.join(save_dir, "GAN_GEN_" + str(current_depth) + ".pth")
-                    dis_save_file = os.path.join(save_dir, "GAN_DIS_" + str(current_depth) + ".pth")
-                    gen_optim_save_file = os.path.join(save_dir,
-                                                       "GAN_GEN_OPTIM_" + str(current_depth)
-                                                       + ".pth")
-                    dis_optim_save_file = os.path.join(save_dir,
-                                                       "GAN_DIS_OPTIM_" + str(current_depth)
-                                                       + ".pth")
+                    gen_save_file = os.path.join(
+                        save_dir, "GAN_GEN_" + str(current_depth) + ".pth"
+                    )
+                    dis_save_file = os.path.join(
+                        save_dir, "GAN_DIS_" + str(current_depth) + ".pth"
+                    )
+                    gen_optim_save_file = os.path.join(
+                        save_dir, "GAN_GEN_OPTIM_" + str(current_depth) + ".pth"
+                    )
+                    dis_optim_save_file = os.path.join(
+                        save_dir, "GAN_DIS_OPTIM_" + str(current_depth) + ".pth"
+                    )
 
                     th.save(self.gen.state_dict(), gen_save_file)
                     th.save(self.dis.state_dict(), dis_save_file)
@@ -677,8 +765,9 @@ class ProGAN:
 
                     # also save the shadow generator if use_ema is True
                     if self.use_ema:
-                        gen_shadow_save_file = os.path.join(save_dir, "GAN_GEN_SHADOW_" +
-                                                            str(current_depth) + ".pth")
+                        gen_shadow_save_file = os.path.join(
+                            save_dir, "GAN_GEN_SHADOW_" + str(current_depth) + ".pth"
+                        )
                         th.save(self.gen_shadow.state_dict(), gen_shadow_save_file)
 
         # put the gen, shadow_gen and dis in eval mode
@@ -694,14 +783,27 @@ class ProGAN:
 # ConditionalProGAN Module
 # ========================================================================================
 
+
 class ConditionalProGAN:
     """ Wrapper around the Generator and the Conditional Discriminator """
 
-    def __init__(self, num_classes, depth=7, latent_size=512,
-                 learning_rate=0.001, beta_1=0, beta_2=0.99,
-                 eps=1e-8, drift=0.001, n_critic=1, use_eql=True,
-                 loss="wgan-gp", use_ema=True, ema_decay=0.999,
-                 device=th.device("cpu")):
+    def __init__(
+        self,
+        num_classes,
+        depth=7,
+        latent_size=512,
+        learning_rate=0.001,
+        beta_1=0,
+        beta_2=0.99,
+        eps=1e-8,
+        drift=0.001,
+        n_critic=1,
+        use_eql=True,
+        loss="wgan-gp",
+        use_ema=True,
+        ema_decay=0.999,
+        device=th.device("cpu"),
+    ):
         """
         constructor for the class
         :param num_classes: number of classes required for the conditional gan
@@ -732,9 +834,8 @@ class ConditionalProGAN:
         # Create the Generator and the Discriminator
         self.gen = Generator(depth, latent_size, use_eql=use_eql).to(device)
         self.dis = ConditionalDiscriminator(
-            num_classes, height=depth,
-            feature_size=latent_size,
-            use_eql=use_eql).to(device)
+            num_classes, height=depth, feature_size=latent_size, use_eql=use_eql
+        ).to(device)
 
         # if code is to be run on GPU, we can use DataParallel:
         if device == th.device("cuda"):
@@ -753,11 +854,13 @@ class ConditionalProGAN:
         self.drift = drift
 
         # define the optimizers for the discriminator and generator
-        self.gen_optim = Adam(self.gen.parameters(), lr=learning_rate,
-                              betas=(beta_1, beta_2), eps=eps)
+        self.gen_optim = Adam(
+            self.gen.parameters(), lr=learning_rate, betas=(beta_1, beta_2), eps=eps
+        )
 
-        self.dis_optim = Adam(self.dis.parameters(), lr=learning_rate,
-                              betas=(beta_1, beta_2), eps=eps)
+        self.dis_optim = Adam(
+            self.dis.parameters(), lr=learning_rate, betas=(beta_1, beta_2), eps=eps
+        )
 
         # define the loss function used for training the GAN
         self.loss = self.__setup_loss(loss)
@@ -832,8 +935,9 @@ class ConditionalProGAN:
         ds_real_samples = AvgPool2d(down_sample_factor)(real_batch)
 
         if depth > 0:
-            prior_ds_real_samples = interpolate(AvgPool2d(prior_downsample_factor)(real_batch),
-                                                scale_factor=2)
+            prior_ds_real_samples = interpolate(
+                AvgPool2d(prior_downsample_factor)(real_batch), scale_factor=2
+            )
         else:
             prior_ds_real_samples = ds_real_samples
 
@@ -861,8 +965,7 @@ class ConditionalProGAN:
             # generate a batch of samples
             fake_samples = self.gen(noise, depth, alpha).detach()
 
-            loss = self.loss.dis_loss(real_samples, fake_samples,
-                                      labels, depth, alpha)
+            loss = self.loss.dis_loss(real_samples, fake_samples, labels, depth, alpha)
 
             # optimize discriminator
             self.dis_optim.zero_grad()
@@ -923,8 +1026,13 @@ class ConditionalProGAN:
             samples = interpolate(samples, scale_factor=scale_factor)
 
         # save the images:
-        save_image(samples, img_file, nrow=int(np.sqrt(len(samples))),
-                   normalize=True, scale_each=True)
+        save_image(
+            samples,
+            img_file,
+            nrow=int(np.sqrt(len(samples))),
+            normalize=True,
+            scale_each=True,
+        )
 
     @staticmethod
     def __save_label_info_file(label_file, labels):
@@ -951,10 +1059,20 @@ class ConditionalProGAN:
 
         return self.label_oh_encoder(labels.view(-1))
 
-    def train(self, dataset, epochs, batch_sizes,
-              fade_in_percentage, start_depth=0, num_workers=3, feedback_factor=100,
-              log_dir="./models/", sample_dir="./samples/", save_dir="./models/",
-              checkpoint_factor=1):
+    def train(
+        self,
+        dataset,
+        epochs,
+        batch_sizes,
+        fade_in_percentage,
+        start_depth=0,
+        num_workers=3,
+        feedback_factor=100,
+        log_dir="./models/",
+        sample_dir="./samples/",
+        save_dir="./models/",
+        checkpoint_factor=1,
+    ):
         """
         Utility method for training the ProGAN. Note that you don't have to necessarily use this
         you can use the optimize_generator and optimize_discriminator for your own training routine.
@@ -997,8 +1115,9 @@ class ConditionalProGAN:
         _, fx_labels = next(iter(temp_data_loader))
         # reshape them properly
         fixed_labels = self.one_hot_encode(fx_labels.view(-1, 1)).to(self.device)
-        fixed_input = th.randn(fixed_labels.shape[0],
-                               self.latent_size - self.num_classes).to(self.device)
+        fixed_input = th.randn(
+            fixed_labels.shape[0], self.latent_size - self.num_classes
+        ).to(self.device)
         fixed_input = th.cat((fixed_labels, fixed_input), dim=-1)
         del temp_data_loader  # delete the temp data_loader since it is not required anymore
 
@@ -1021,8 +1140,11 @@ class ConditionalProGAN:
                 print("\nEpoch: %d" % epoch)
                 total_batches = len(iter(data))
 
-                fader_point = int((fade_in_percentage[current_depth] / 100)
-                                  * epochs[current_depth] * total_batches)
+                fader_point = int(
+                    (fade_in_percentage[current_depth] / 100)
+                    * epochs[current_depth]
+                    * total_batches
+                )
 
                 step = 0  # counter for number of iterations
 
@@ -1037,54 +1159,69 @@ class ConditionalProGAN:
 
                     # create the input to the Generator
                     label_information = self.one_hot_encode(labels).to(self.device)
-                    latent_vector = th.randn(images.shape[0],
-                                             self.latent_size - self.num_classes).to(self.device)
+                    latent_vector = th.randn(
+                        images.shape[0], self.latent_size - self.num_classes
+                    ).to(self.device)
                     gan_input = th.cat((label_information, latent_vector), dim=-1)
 
                     # optimize the discriminator:
-                    dis_loss = self.optimize_discriminator(gan_input, images,
-                                                           labels, current_depth, alpha)
+                    dis_loss = self.optimize_discriminator(
+                        gan_input, images, labels, current_depth, alpha
+                    )
 
                     # optimize the generator:
-                    gen_loss = self.optimize_generator(gan_input, images,
-                                                       labels, current_depth, alpha)
+                    gen_loss = self.optimize_generator(
+                        gan_input, images, labels, current_depth, alpha
+                    )
 
                     # provide a loss feedback
                     if i % int(total_batches / feedback_factor) == 0 or i == 1:
                         elapsed = time.time() - global_time
                         elapsed = str(datetime.timedelta(seconds=elapsed))
-                        print("Elapsed: [%s]  batch: %d  d_loss: %f  g_loss: %f"
-                              % (elapsed, i, dis_loss, gen_loss))
+                        print(
+                            "Elapsed: [%s]  batch: %d  d_loss: %f  g_loss: %f"
+                            % (elapsed, i, dis_loss, gen_loss)
+                        )
 
                         # also write the losses to the log file:
                         os.makedirs(log_dir, exist_ok=True)
-                        log_file = os.path.join(log_dir, "loss_" + str(current_depth) + ".log")
+                        log_file = os.path.join(
+                            log_dir, "loss_" + str(current_depth) + ".log"
+                        )
                         with open(log_file, "a") as log:
-                            log.write(str(step) + "\t" + str(dis_loss) +
-                                      "\t" + str(gen_loss) + "\n")
+                            log.write(
+                                str(step)
+                                + "\t"
+                                + str(dis_loss)
+                                + "\t"
+                                + str(gen_loss)
+                                + "\n"
+                            )
 
                         # create a grid of samples and save it
                         os.makedirs(sample_dir, exist_ok=True)
-                        gen_img_file = os.path.join(sample_dir, "gen_" + str(current_depth) +
-                                                    "_" + str(epoch) + "_" +
-                                                    str(i) + ".png")
+                        gen_img_file = os.path.join(
+                            sample_dir,
+                            "gen_"
+                            + str(current_depth)
+                            + "_"
+                            + str(epoch)
+                            + "_"
+                            + str(i)
+                            + ".png",
+                        )
 
                         # this is done to allow for more GPU space
                         self.gen_optim.zero_grad()
                         self.dis_optim.zero_grad()
                         with th.no_grad():
                             self.create_grid(
-                                samples=self.gen(
-                                    fixed_input,
-                                    current_depth,
-                                    alpha
-                                ) if not self.use_ema
-                                else self.gen_shadow(
-                                    fixed_input,
-                                    current_depth,
-                                    alpha
+                                samples=self.gen(fixed_input, current_depth, alpha)
+                                if not self.use_ema
+                                else self.gen_shadow(fixed_input, current_depth, alpha),
+                                scale_factor=int(
+                                    np.power(2, self.depth - current_depth - 1)
                                 ),
-                                scale_factor=int(np.power(2, self.depth - current_depth - 1)),
                                 img_file=gen_img_file,
                             )
 
@@ -1095,16 +1232,24 @@ class ConditionalProGAN:
                 stop = timeit.default_timer()
                 print("Time taken for epoch: %.3f secs" % (stop - start))
 
-                if epoch % checkpoint_factor == 0 or epoch == 1 or epoch == epochs[current_depth]:
+                if (
+                    epoch % checkpoint_factor == 0
+                    or epoch == 1
+                    or epoch == epochs[current_depth]
+                ):
                     os.makedirs(save_dir, exist_ok=True)
-                    gen_save_file = os.path.join(save_dir, "GAN_GEN_" + str(current_depth) + ".pth")
-                    dis_save_file = os.path.join(save_dir, "GAN_DIS_" + str(current_depth) + ".pth")
-                    gen_optim_save_file = os.path.join(save_dir,
-                                                       "GAN_GEN_OPTIM_" + str(current_depth)
-                                                       + ".pth")
-                    dis_optim_save_file = os.path.join(save_dir,
-                                                       "GAN_DIS_OPTIM_" + str(current_depth)
-                                                       + ".pth")
+                    gen_save_file = os.path.join(
+                        save_dir, "GAN_GEN_" + str(current_depth) + ".pth"
+                    )
+                    dis_save_file = os.path.join(
+                        save_dir, "GAN_DIS_" + str(current_depth) + ".pth"
+                    )
+                    gen_optim_save_file = os.path.join(
+                        save_dir, "GAN_GEN_OPTIM_" + str(current_depth) + ".pth"
+                    )
+                    dis_optim_save_file = os.path.join(
+                        save_dir, "GAN_DIS_OPTIM_" + str(current_depth) + ".pth"
+                    )
 
                     th.save(self.gen.state_dict(), gen_save_file)
                     th.save(self.dis.state_dict(), dis_save_file)
@@ -1113,8 +1258,9 @@ class ConditionalProGAN:
 
                     # also save the shadow generator if use_ema is True
                     if self.use_ema:
-                        gen_shadow_save_file = os.path.join(save_dir, "GAN_GEN_SHADOW_" +
-                                                            str(current_depth) + ".pth")
+                        gen_shadow_save_file = os.path.join(
+                            save_dir, "GAN_GEN_SHADOW_" + str(current_depth) + ".pth"
+                        )
                         th.save(self.gen_shadow.state_dict(), gen_shadow_save_file)
 
         # put the gen, shadow_gen and dis in eval mode

@@ -23,9 +23,9 @@ class _equalized_conv2d(th.nn.Module):
         super(_equalized_conv2d, self).__init__()
 
         # define the weight and bias if to be used
-        self.weight = th.nn.Parameter(th.nn.init.normal_(
-            th.empty(c_out, c_in, *_pair(k_size))
-        ))
+        self.weight = th.nn.Parameter(
+            th.nn.init.normal_(th.empty(c_out, c_in, *_pair(k_size)))
+        )
 
         self.use_bias = bias
         self.stride = stride
@@ -45,11 +45,13 @@ class _equalized_conv2d(th.nn.Module):
         """
         from torch.nn.functional import conv2d
 
-        return conv2d(input=x,
-                      weight=self.weight * self.scale,  # scale the weight on runtime
-                      bias=self.bias if self.use_bias else None,
-                      stride=self.stride,
-                      padding=self.pad)
+        return conv2d(
+            input=x,
+            weight=self.weight * self.scale,  # scale the weight on runtime
+            bias=self.bias if self.use_bias else None,
+            stride=self.stride,
+            padding=self.pad,
+        )
 
     def extra_repr(self):
         return ", ".join(map(str, self.weight.shape))
@@ -74,9 +76,9 @@ class _equalized_deconv2d(th.nn.Module):
         super(_equalized_deconv2d, self).__init__()
 
         # define the weight and bias if to be used
-        self.weight = th.nn.Parameter(th.nn.init.normal_(
-            th.empty(c_in, c_out, *_pair(k_size))
-        ))
+        self.weight = th.nn.Parameter(
+            th.nn.init.normal_(th.empty(c_in, c_out, *_pair(k_size)))
+        )
 
         self.use_bias = bias
         self.stride = stride
@@ -96,11 +98,13 @@ class _equalized_deconv2d(th.nn.Module):
         """
         from torch.nn.functional import conv_transpose2d
 
-        return conv_transpose2d(input=x,
-                                weight=self.weight * self.scale,  # scale the weight on runtime
-                                bias=self.bias if self.use_bias else None,
-                                stride=self.stride,
-                                padding=self.pad)
+        return conv_transpose2d(
+            input=x,
+            weight=self.weight * self.scale,  # scale the weight on runtime
+            bias=self.bias if self.use_bias else None,
+            stride=self.stride,
+            padding=self.pad,
+        )
 
     def extra_repr(self):
         return ", ".join(map(str, self.weight.shape))
@@ -122,9 +126,7 @@ class _equalized_linear(th.nn.Module):
 
         super(_equalized_linear, self).__init__()
 
-        self.weight = th.nn.Parameter(th.nn.init.normal_(
-            th.empty(c_out, c_in)
-        ))
+        self.weight = th.nn.Parameter(th.nn.init.normal_(th.empty(c_out, c_in)))
 
         self.use_bias = bias
 
@@ -141,8 +143,8 @@ class _equalized_linear(th.nn.Module):
         :return: y => output
         """
         from torch.nn.functional import linear
-        return linear(x, self.weight * self.scale,
-                      self.bias if self.use_bias else None)
+
+        return linear(x, self.weight * self.scale, self.bias if self.use_bias else None)
 
 
 # ----------------------------------------------------------------------------
@@ -160,7 +162,7 @@ class PixelwiseNorm(th.nn.Module):
         :param alpha: small number for numerical stability
         :return: y => pixel normalized activations
         """
-        y = x.pow(2.).mean(dim=1, keepdim=True).add(alpha).sqrt()  # [N1HW]
+        y = x.pow(2.0).mean(dim=1, keepdim=True).add(alpha).sqrt()  # [N1HW]
         y = x / y  # normalize the input x volume
         return y
 
@@ -183,12 +185,16 @@ class GenInitialBlock(th.nn.Module):
         super(GenInitialBlock, self).__init__()
 
         if use_eql:
-            self.conv_1 = _equalized_deconv2d(in_channels, in_channels, (4, 4), bias=True)
-            self.conv_2 = _equalized_conv2d(in_channels, in_channels, (3, 3),
-                                            pad=1, bias=True)
+            self.conv_1 = _equalized_deconv2d(
+                in_channels, in_channels, (4, 4), bias=True
+            )
+            self.conv_2 = _equalized_conv2d(
+                in_channels, in_channels, (3, 3), pad=1, bias=True
+            )
 
         else:
             from torch.nn import Conv2d, ConvTranspose2d
+
             self.conv_1 = ConvTranspose2d(in_channels, in_channels, (4, 4), bias=True)
             self.conv_2 = Conv2d(in_channels, in_channels, (3, 3), padding=1, bias=True)
 
@@ -235,16 +241,21 @@ class GenGeneralConvBlock(th.nn.Module):
         self.upsample = lambda x: interpolate(x, scale_factor=2)
 
         if use_eql:
-            self.conv_1 = _equalized_conv2d(in_channels, out_channels, (3, 3),
-                                            pad=1, bias=True)
-            self.conv_2 = _equalized_conv2d(out_channels, out_channels, (3, 3),
-                                            pad=1, bias=True)
+            self.conv_1 = _equalized_conv2d(
+                in_channels, out_channels, (3, 3), pad=1, bias=True
+            )
+            self.conv_2 = _equalized_conv2d(
+                out_channels, out_channels, (3, 3), pad=1, bias=True
+            )
         else:
             from torch.nn import Conv2d
-            self.conv_1 = Conv2d(in_channels, out_channels, (3, 3),
-                                 padding=1, bias=True)
-            self.conv_2 = Conv2d(out_channels, out_channels, (3, 3),
-                                 padding=1, bias=True)
+
+            self.conv_1 = Conv2d(
+                in_channels, out_channels, (3, 3), padding=1, bias=True
+            )
+            self.conv_2 = Conv2d(
+                out_channels, out_channels, (3, 3), padding=1, bias=True
+            )
 
         # Pixelwise feature vector normalization operation
         self.pixNorm = PixelwiseNorm()
@@ -289,8 +300,8 @@ def update_average(model_tgt, model_src, beta):
 
     for p_name, p_tgt in model_tgt.named_parameters():
         p_src = param_dict_src[p_name]
-        assert (p_src is not p_tgt)
-        p_tgt.copy_(beta * p_tgt + (1. - beta) * p_src)
+        assert p_src is not p_tgt
+        p_tgt.copy_(beta * p_tgt + (1.0 - beta) * p_src)
 
     # turn back on the gradient calculation
     toggle_grad(model_tgt, True)
@@ -321,7 +332,7 @@ class MinibatchStdDev(th.nn.Module):
         y = x - x.mean(dim=0, keepdim=True)
 
         # [1 x C x H x W]  Calc standard deviation over batch
-        y = th.sqrt(y.pow(2.).mean(dim=0, keepdim=False) + alpha)
+        y = th.sqrt(y.pow(2.0).mean(dim=0, keepdim=False) + alpha)
 
         # [1]  Take average over feature_maps and pixels.
         y = y.mean().view(1, 1, 1, 1)
@@ -352,13 +363,18 @@ class DisFinalBlock(th.nn.Module):
         # declare the required modules for forward pass
         self.batch_discriminator = MinibatchStdDev()
         if use_eql:
-            self.conv_1 = _equalized_conv2d(in_channels + 1, in_channels, (3, 3), pad=1, bias=True)
+            self.conv_1 = _equalized_conv2d(
+                in_channels + 1, in_channels, (3, 3), pad=1, bias=True
+            )
             self.conv_2 = _equalized_conv2d(in_channels, in_channels, (4, 4), bias=True)
             # final conv layer emulates a fully connected layer
             self.conv_3 = _equalized_conv2d(in_channels, 1, (1, 1), bias=True)
         else:
             from torch.nn import Conv2d
-            self.conv_1 = Conv2d(in_channels + 1, in_channels, (3, 3), padding=1, bias=True)
+
+            self.conv_1 = Conv2d(
+                in_channels + 1, in_channels, (3, 3), padding=1, bias=True
+            )
             self.conv_2 = Conv2d(in_channels, in_channels, (4, 4), bias=True)
             # final conv layer emulates a fully connected layer
             self.conv_3 = Conv2d(in_channels, 1, (1, 1), bias=True)
@@ -405,14 +421,19 @@ class ConDisFinalBlock(th.nn.Module):
         # declare the required modules for forward pass
         self.batch_discriminator = MinibatchStdDev()
         if use_eql:
-            self.conv_1 = _equalized_conv2d(in_channels + 1, in_channels, (3, 3), pad=1, bias=True)
+            self.conv_1 = _equalized_conv2d(
+                in_channels + 1, in_channels, (3, 3), pad=1, bias=True
+            )
             self.conv_2 = _equalized_conv2d(in_channels, in_channels, (4, 4), bias=True)
 
             # final conv layer emulates a fully connected layer
             self.conv_3 = _equalized_conv2d(in_channels, 1, (1, 1), bias=True)
         else:
             from torch.nn import Conv2d
-            self.conv_1 = Conv2d(in_channels + 1, in_channels, (3, 3), padding=1, bias=True)
+
+            self.conv_1 = Conv2d(
+                in_channels + 1, in_channels, (3, 3), padding=1, bias=True
+            )
             self.conv_2 = Conv2d(in_channels, in_channels, (4, 4), bias=True)
 
             # final conv layer emulates a fully connected layer
@@ -473,12 +494,19 @@ class DisGeneralConvBlock(th.nn.Module):
         super(DisGeneralConvBlock, self).__init__()
 
         if use_eql:
-            self.conv_1 = _equalized_conv2d(in_channels, in_channels, (3, 3), pad=1, bias=True)
-            self.conv_2 = _equalized_conv2d(in_channels, out_channels, (3, 3), pad=1, bias=True)
+            self.conv_1 = _equalized_conv2d(
+                in_channels, in_channels, (3, 3), pad=1, bias=True
+            )
+            self.conv_2 = _equalized_conv2d(
+                in_channels, out_channels, (3, 3), pad=1, bias=True
+            )
         else:
             from torch.nn import Conv2d
+
             self.conv_1 = Conv2d(in_channels, in_channels, (3, 3), padding=1, bias=True)
-            self.conv_2 = Conv2d(in_channels, out_channels, (3, 3), padding=1, bias=True)
+            self.conv_2 = Conv2d(
+                in_channels, out_channels, (3, 3), padding=1, bias=True
+            )
 
         self.downSampler = AvgPool2d(2)
 

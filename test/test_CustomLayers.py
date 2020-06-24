@@ -7,7 +7,6 @@ device = th.device("cuda" if th.cuda.is_available() else "cpu")
 
 
 class Test_equalized_conv2d(TestCase):
-
     def setUp(self):
         self.conv_block = cL._equalized_conv2d(21, 3, k_size=(3, 3), pad=1)
 
@@ -32,7 +31,6 @@ class Test_equalized_conv2d(TestCase):
 
 
 class Test_equalized_deconv2d(TestCase):
-
     def setUp(self):
         self.deconv_block = cL._equalized_deconv2d(21, 3, k_size=(3, 3), pad=1)
 
@@ -57,7 +55,6 @@ class Test_equalized_deconv2d(TestCase):
 
 
 class Test_equalized_linear(TestCase):
-
     def setUp(self):
         self.lin_block = cL._equalized_linear(13, 52)
 
@@ -83,7 +80,6 @@ class Test_equalized_linear(TestCase):
 
 
 class Test_PixelwiseNorm(TestCase):
-
     def setUp(self):
         self.normalizer = cL.PixelwiseNorm()
 
@@ -106,7 +102,6 @@ class Test_PixelwiseNorm(TestCase):
 
 
 class Test_MinibatchStdDev(TestCase):
-
     def setUp(self):
         self.minStdD = cL.MinibatchStdDev()
 
