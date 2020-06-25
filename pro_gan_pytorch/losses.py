@@ -2,10 +2,10 @@
 
 import torch as th
 
-
 # =============================================================
 # Interface for the losses
 # =============================================================
+
 
 class GANLoss:
     """ Base class for all losses
@@ -58,8 +58,8 @@ class ConditionalGANLoss:
 # Normal versions of the Losses:
 # =============================================================
 
-class StandardGAN(GANLoss):
 
+class StandardGAN(GANLoss):
     def __init__(self, dis):
         from torch.nn import BCEWithLogitsLoss
 
@@ -70,8 +70,9 @@ class StandardGAN(GANLoss):
 
     def dis_loss(self, real_samps, fake_samps, height, alpha):
         # small assertion:
-        assert real_samps.device == fake_samps.device, \
-            "Real and Fake samples are not on the same device"
+        assert (
+            real_samps.device == fake_samps.device
+        ), "Real and Fake samples are not on the same device"
 
         # device for computations:
         device = fake_samps.device
@@ -82,32 +83,31 @@ class StandardGAN(GANLoss):
 
         # calculate the real loss:
         real_loss = self.criterion(
-            th.squeeze(r_preds),
-            th.ones(real_samps.shape[0]).to(device))
+            th.squeeze(r_preds), th.ones(real_samps.shape[0]).to(device)
+        )
 
         # calculate the fake loss:
         fake_loss = self.criterion(
-            th.squeeze(f_preds),
-            th.zeros(fake_samps.shape[0]).to(device))
+            th.squeeze(f_preds), th.zeros(fake_samps.shape[0]).to(device)
+        )
 
         # return final losses
         return (real_loss + fake_loss) / 2
 
     def gen_loss(self, _, fake_samps, height, alpha):
         preds, _, _ = self.dis(fake_samps, height, alpha)
-        return self.criterion(th.squeeze(preds),
-                              th.ones(fake_samps.shape[0]).to(fake_samps.device))
+        return self.criterion(
+            th.squeeze(preds), th.ones(fake_samps.shape[0]).to(fake_samps.device)
+        )
 
 
 class WGAN_GP(GANLoss):
-
     def __init__(self, dis, drift=0.001, use_gp=False):
         super().__init__(dis)
         self.drift = drift
         self.use_gp = use_gp
 
-    def __gradient_penalty(self, real_samps, fake_samps,
-                           height, alpha, reg_lambda=10):
+    def __gradient_penalty(self, real_samps, fake_samps, height, alpha, reg_lambda=10):
         """
         private helper for calculating the gradient penalty
         :param real_samps: real samples
@@ -130,9 +130,14 @@ class WGAN_GP(GANLoss):
         op = self.dis(merged, height, alpha)
 
         # perform backward pass from op to merged for obtaining the gradients
-        gradient = th.autograd.grad(outputs=op, inputs=merged,
-                                    grad_outputs=th.ones_like(op), create_graph=True,
-                                    retain_graph=True, only_inputs=True)[0]
+        gradient = th.autograd.grad(
+            outputs=op,
+            inputs=merged,
+            grad_outputs=th.ones_like(op),
+            create_graph=True,
+            retain_graph=True,
+            only_inputs=True,
+        )[0]
 
         # calculate the penalty using these gradients
         gradient = gradient.view(gradient.shape[0], -1)
@@ -146,8 +151,11 @@ class WGAN_GP(GANLoss):
         fake_out = self.dis(fake_samps, height, alpha)
         real_out = self.dis(real_samps, height, alpha)
 
-        loss = (th.mean(fake_out) - th.mean(real_out)
-                + (self.drift * th.mean(real_out ** 2)))
+        loss = (
+            th.mean(fake_out)
+            - th.mean(real_out)
+            + (self.drift * th.mean(real_out ** 2))
+        )
 
         if self.use_gp:
             # calculate the WGAN-GP (gradient penalty)
@@ -164,37 +172,38 @@ class WGAN_GP(GANLoss):
 
 
 class LSGAN(GANLoss):
-
     def __init__(self, dis):
         super().__init__(dis)
 
     def dis_loss(self, real_samps, fake_samps, height, alpha):
-        return 0.5 * (th.mean((self.dis(real_samps, height, alpha) - 1) ** 2)
-                      + (th.mean(self.dis(fake_samps, height, alpha) ** 2)))
+        return 0.5 * (
+            th.mean((self.dis(real_samps, height, alpha) - 1) ** 2)
+            + (th.mean(self.dis(fake_samps, height, alpha) ** 2))
+        )
 
     def gen_loss(self, _, fake_samps, height, alpha):
         return 0.5 * (th.mean((self.dis(fake_samps, height, alpha) - 1) ** 2))
 
 
 class LSGAN_SIGMOID(GANLoss):
-
     def __init__(self, dis):
         super().__init__(dis)
 
     def dis_loss(self, real_samps, fake_samps, height, alpha):
         from torch.nn.functional import sigmoid
+
         real_scores = sigmoid(self.dis(real_samps, height, alpha))
         fake_scores = sigmoid(self.dis(fake_samps, height, alpha))
         return 0.5 * ((th.mean((real_scores - 1) ** 2)) + th.mean(fake_scores ** 2))
 
     def gen_loss(self, _, fake_samps, height, alpha):
         from torch.nn.functional import sigmoid
+
         scores = sigmoid(self.dis(fake_samps, height, alpha))
         return 0.5 * (th.mean((scores - 1) ** 2))
 
 
 class HingeGAN(GANLoss):
-
     def __init__(self, dis):
         super().__init__(dis)
 
@@ -202,8 +211,7 @@ class HingeGAN(GANLoss):
         r_preds = self.dis(real_samps, height, alpha)
         f_preds = self.dis(fake_samps, height, alpha)
 
-        loss = (th.mean(th.nn.ReLU()(1 - r_preds)) +
-                th.mean(th.nn.ReLU()(1 + f_preds)))
+        loss = th.mean(th.nn.ReLU()(1 - r_preds)) + th.mean(th.nn.ReLU()(1 + f_preds))
 
         return loss
 
@@ -212,7 +220,6 @@ class HingeGAN(GANLoss):
 
 
 class RelativisticAverageHingeGAN(GANLoss):
-
     def __init__(self, dis):
         super().__init__(dis)
 
@@ -228,8 +235,7 @@ class RelativisticAverageHingeGAN(GANLoss):
         f_r_diff = f_preds - th.mean(r_preds)
 
         # return the loss
-        loss = (th.mean(th.nn.ReLU()(1 - r_f_diff))
-                + th.mean(th.nn.ReLU()(1 + f_r_diff)))
+        loss = th.mean(th.nn.ReLU()(1 - r_f_diff)) + th.mean(th.nn.ReLU()(1 + f_r_diff))
 
         return loss
 
@@ -245,16 +251,15 @@ class RelativisticAverageHingeGAN(GANLoss):
         f_r_diff = f_preds - th.mean(r_preds)
 
         # return the loss
-        return (th.mean(th.nn.ReLU()(1 + r_f_diff))
-                + th.mean(th.nn.ReLU()(1 - f_r_diff)))
+        return th.mean(th.nn.ReLU()(1 + r_f_diff)) + th.mean(th.nn.ReLU()(1 - f_r_diff))
 
 
 # =============================================================
 # Conditional versions of the Losses:
 # =============================================================
 
-class CondStandardGAN(ConditionalGANLoss):
 
+class CondStandardGAN(ConditionalGANLoss):
     def __init__(self, dis):
         from torch.nn import BCEWithLogitsLoss
 
@@ -265,8 +270,9 @@ class CondStandardGAN(ConditionalGANLoss):
 
     def dis_loss(self, real_samps, fake_samps, labels, height, alpha):
         # small assertion:
-        assert real_samps.device == fake_samps.device, \
-            "Real and Fake samples are not on the same device"
+        assert (
+            real_samps.device == fake_samps.device
+        ), "Real and Fake samples are not on the same device"
 
         # device for computations:
         device = fake_samps.device
@@ -277,32 +283,33 @@ class CondStandardGAN(ConditionalGANLoss):
 
         # calculate the real loss:
         real_loss = self.criterion(
-            th.squeeze(r_preds),
-            th.ones(real_samps.shape[0]).to(device))
+            th.squeeze(r_preds), th.ones(real_samps.shape[0]).to(device)
+        )
 
         # calculate the fake loss:
         fake_loss = self.criterion(
-            th.squeeze(f_preds),
-            th.zeros(fake_samps.shape[0]).to(device))
+            th.squeeze(f_preds), th.zeros(fake_samps.shape[0]).to(device)
+        )
 
         # return final loss
         return (real_loss + fake_loss) / 2
 
     def gen_loss(self, _, fake_samps, labels, height, alpha):
         preds, _, _ = self.dis(fake_samps, labels, height, alpha)
-        return self.criterion(th.squeeze(preds),
-                              th.ones(fake_samps.shape[0]).to(fake_samps.device))
+        return self.criterion(
+            th.squeeze(preds), th.ones(fake_samps.shape[0]).to(fake_samps.device)
+        )
 
 
 class CondWGAN_GP(ConditionalGANLoss):
-
     def __init__(self, dis, drift=0.001, use_gp=False):
         super().__init__(dis)
         self.drift = drift
         self.use_gp = use_gp
 
-    def __gradient_penalty(self, real_samps, fake_samps, labels,
-                           height, alpha, reg_lambda=10):
+    def __gradient_penalty(
+        self, real_samps, fake_samps, labels, height, alpha, reg_lambda=10
+    ):
         """
         private helper for calculating the gradient penalty
         :param real_samps: real samples
@@ -329,9 +336,14 @@ class CondWGAN_GP(ConditionalGANLoss):
         op = self.dis(merged, labels, height, alpha)
 
         # obtain gradient of op wrt. merged
-        gradient = grad(outputs=op, inputs=merged,
-                        grad_outputs=th.ones_like(op), create_graph=True,
-                        retain_graph=True, only_inputs=True)[0]
+        gradient = grad(
+            outputs=op,
+            inputs=merged,
+            grad_outputs=th.ones_like(op),
+            create_graph=True,
+            retain_graph=True,
+            only_inputs=True,
+        )[0]
 
         # calculate the penalty using these gradients
         gradient = gradient.view(batch_size, -1)
@@ -345,13 +357,15 @@ class CondWGAN_GP(ConditionalGANLoss):
         fake_out = self.dis(fake_samps, labels, height, alpha)
         real_out = self.dis(real_samps, labels, height, alpha)
 
-        loss = (th.mean(fake_out) - th.mean(real_out)
-                + (self.drift * th.mean(real_out ** 2)))
+        loss = (
+            th.mean(fake_out)
+            - th.mean(real_out)
+            + (self.drift * th.mean(real_out ** 2))
+        )
 
         if self.use_gp:
             # calculate the WGAN-GP (gradient penalty)
-            gp = self.__gradient_penalty(real_samps, fake_samps,
-                                         labels, height, alpha)
+            gp = self.__gradient_penalty(real_samps, fake_samps, labels, height, alpha)
             loss += gp
 
         return loss
@@ -364,37 +378,38 @@ class CondWGAN_GP(ConditionalGANLoss):
 
 
 class CondLSGAN(ConditionalGANLoss):
-
     def __init__(self, dis):
         super().__init__(dis)
 
     def dis_loss(self, real_samps, fake_samps, labels, height, alpha):
-        return 0.5 * ((th.mean((self.dis(real_samps, labels, height, alpha) - 1) ** 2))
-                      + (th.mean(self.dis(fake_samps, labels, height, alpha) ** 2)))
+        return 0.5 * (
+            (th.mean((self.dis(real_samps, labels, height, alpha) - 1) ** 2))
+            + (th.mean(self.dis(fake_samps, labels, height, alpha) ** 2))
+        )
 
     def gen_loss(self, _, fake_samps, labels, height, alpha):
         return 0.5 * (th.mean((self.dis(fake_samps, labels, height, alpha) - 1) ** 2))
 
 
 class CondLSGAN_SIGMOID(ConditionalGANLoss):
-
     def __init__(self, dis):
         super().__init__(dis)
 
     def dis_loss(self, real_samps, fake_samps, labels, height, alpha):
         from torch.nn.functional import sigmoid
+
         real_scores = sigmoid(self.dis(real_samps, labels, height, alpha))
         fake_scores = sigmoid(self.dis(fake_samps, labels, height, alpha))
         return 0.5 * (th.mean((real_scores - 1) ** 2) + th.mean(fake_scores ** 2))
 
     def gen_loss(self, _, fake_samps, labels, height, alpha):
         from torch.nn.functional import sigmoid
+
         scores = sigmoid(self.dis(fake_samps, labels, height, alpha))
         return 0.5 * (th.mean((scores - 1) ** 2))
 
 
 class CondHingeGAN(ConditionalGANLoss):
-
     def __init__(self, dis):
         super().__init__(dis)
 
@@ -402,8 +417,7 @@ class CondHingeGAN(ConditionalGANLoss):
         r_preds = self.dis(real_samps, labels, height, alpha)
         f_preds = self.dis(fake_samps, labels, height, alpha)
 
-        loss = (th.mean(th.nn.ReLU()(1 - r_preds)) +
-                th.mean(th.nn.ReLU()(1 + f_preds)))
+        loss = th.mean(th.nn.ReLU()(1 - r_preds)) + th.mean(th.nn.ReLU()(1 + f_preds))
 
         return loss
 
@@ -412,7 +426,6 @@ class CondHingeGAN(ConditionalGANLoss):
 
 
 class CondRelativisticAverageHingeGAN(ConditionalGANLoss):
-
     def __init__(self, dis):
         super().__init__(dis)
 
@@ -428,8 +441,7 @@ class CondRelativisticAverageHingeGAN(ConditionalGANLoss):
         f_r_diff = f_preds - th.mean(r_preds)
 
         # return the loss
-        loss = (th.mean(th.nn.ReLU()(1 - r_f_diff))
-                + th.mean(th.nn.ReLU()(1 + f_r_diff)))
+        loss = th.mean(th.nn.ReLU()(1 - r_f_diff)) + th.mean(th.nn.ReLU()(1 + f_r_diff))
 
         return loss
 
@@ -445,5 +457,4 @@ class CondRelativisticAverageHingeGAN(ConditionalGANLoss):
         f_r_diff = f_preds - th.mean(r_preds)
 
         # return the loss
-        return (th.mean(th.nn.ReLU()(1 + r_f_diff))
-                + th.mean(th.nn.ReLU()(1 - f_r_diff)))
+        return th.mean(th.nn.ReLU()(1 + r_f_diff)) + th.mean(th.nn.ReLU()(1 - f_r_diff))

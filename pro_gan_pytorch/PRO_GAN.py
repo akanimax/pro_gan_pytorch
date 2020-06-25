@@ -1,14 +1,15 @@
 """ Module implementing GAN which will be trained using the Progressive growing
     technique -> https://arxiv.org/abs/1710.10196
 """
+import copy
 import datetime
 import os
 import time
 import timeit
-import copy
-import numpy as np
-import torch as th
 
+import numpy as np
+
+import torch as th
 
 # ========================================================================================
 # Generator Module
@@ -27,7 +28,8 @@ class Generator(th.nn.Module):
         :param use_eql: whether to use equalized learning rate
         """
         from torch.nn import ModuleList
-        from pro_gan_pytorch.CustomLayers import GenGeneralConvBlock, GenInitialBlock
+        from modules import GenGeneralConvBlock
+        from modules import GenInitialBlock
         from torch.nn.functional import interpolate
 
         super(Generator, self).__init__()
@@ -53,9 +55,9 @@ class Generator(th.nn.Module):
 
         # create the ToRGB layers for various outputs:
         if self.use_eql:
-            from pro_gan_pytorch.CustomLayers import _equalized_conv2d
+            from pro_gan_pytorch.custom_layers import EqualizedConv2d
 
-            self.toRGB = lambda in_channels: _equalized_conv2d(
+            self.toRGB = lambda in_channels: EqualizedConv2d(
                 in_channels, 3, (1, 1), bias=True
             )
         else:
@@ -132,7 +134,8 @@ class Discriminator(th.nn.Module):
         :param use_eql: whether to use equalized learning rate
         """
         from torch.nn import ModuleList, AvgPool2d
-        from pro_gan_pytorch.CustomLayers import DisGeneralConvBlock, DisFinalBlock
+        from modules import DisGeneralConvBlock
+        from modules import DisFinalBlock
 
         super(Discriminator, self).__init__()
 
@@ -156,9 +159,9 @@ class Discriminator(th.nn.Module):
 
         # create the fromRGB layers for various inputs:
         if self.use_eql:
-            from pro_gan_pytorch.CustomLayers import _equalized_conv2d
+            from pro_gan_pytorch.custom_layers import EqualizedConv2d
 
-            self.fromRGB = lambda out_channels: _equalized_conv2d(
+            self.fromRGB = lambda out_channels: EqualizedConv2d(
                 3, out_channels, (1, 1), bias=True
             )
         else:
@@ -240,7 +243,8 @@ class ConditionalDiscriminator(th.nn.Module):
         :param use_eql: whether to use equalized learning rate
         """
         from torch.nn import ModuleList, AvgPool2d
-        from pro_gan_pytorch.CustomLayers import DisGeneralConvBlock, ConDisFinalBlock
+        from modules import DisGeneralConvBlock
+        from modules import ConDisFinalBlock
 
         super(ConditionalDiscriminator, self).__init__()
 
@@ -267,9 +271,9 @@ class ConditionalDiscriminator(th.nn.Module):
 
         # create the fromRGB layers for various inputs:
         if self.use_eql:
-            from pro_gan_pytorch.CustomLayers import _equalized_conv2d
+            from pro_gan_pytorch.custom_layers import EqualizedConv2d
 
-            self.fromRGB = lambda out_channels: _equalized_conv2d(
+            self.fromRGB = lambda out_channels: EqualizedConv2d(
                 3, out_channels, (1, 1), bias=True
             )
         else:
@@ -413,7 +417,7 @@ class ProGAN:
         self.loss = self.__setup_loss(loss)
 
         if self.use_ema:
-            from pro_gan_pytorch.CustomLayers import update_average
+            from pro_gan_pytorch.custom_layers import update_average
 
             # create a shadow copy of the generator
             self.gen_shadow = copy.deepcopy(self.gen)
@@ -426,7 +430,7 @@ class ProGAN:
             self.ema_updater(self.gen_shadow, self.gen, beta=0)
 
     def __setup_loss(self, loss):
-        import pro_gan_pytorch.Losses as losses
+        import pro_gan_pytorch.losses as losses
 
         if isinstance(loss, str):
             loss = loss.lower()  # lowercase the string
@@ -618,7 +622,7 @@ class ProGAN:
         :param save_dir: directory for saving the models (.pth files)
         :return: None (Writes multiple files to disk)
         """
-        from pro_gan_pytorch.DataTools import get_data_loader
+        from pro_gan_pytorch.data_tools import get_data_loader
 
         assert self.depth == len(batch_sizes), "batch_sizes not compatible with depth"
 
@@ -867,7 +871,7 @@ class ConditionalProGAN:
 
         # setup the ema for the generator
         if self.use_ema:
-            from pro_gan_pytorch.CustomLayers import update_average
+            from pro_gan_pytorch.custom_layers import update_average
 
             # create a shadow copy of the generator
             self.gen_shadow = copy.deepcopy(self.gen)
@@ -880,7 +884,7 @@ class ConditionalProGAN:
             self.ema_updater(self.gen_shadow, self.gen, beta=0)
 
     def __setup_loss(self, loss):
-        import pro_gan_pytorch.Losses as losses
+        import pro_gan_pytorch.losses as losses
 
         if isinstance(loss, str):
             loss = loss.lower()  # lowercase the string
@@ -1097,7 +1101,7 @@ class ConditionalProGAN:
         :param save_dir: directory for saving the models (.pth files)
         :return: None (Writes multiple files to disk)
         """
-        from pro_gan_pytorch.DataTools import get_data_loader
+        from pro_gan_pytorch.data_tools import get_data_loader
 
         assert self.depth == len(batch_sizes), "batch_sizes not compatible with depth"
 

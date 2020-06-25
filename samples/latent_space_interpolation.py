@@ -1,16 +1,16 @@
 """ script for generating samples from a trained model """
 
-import torch as th
-import numpy as np
 import argparse
 import os
-from torch.backends import cudnn
-from torchvision.utils import make_grid
-from math import sqrt, ceil
-from tqdm import tqdm
-from scipy.ndimage import gaussian_filter
-import cv2
+from math import sqrt
 
+import cv2
+import numpy as np
+from scipy.ndimage import gaussian_filter
+from tqdm import tqdm
+
+import torch as th
+from torch.backends import cudnn
 
 # turn fast mode on
 cudnn.benchmark = True
@@ -157,6 +157,7 @@ def main(args):
     global_frame_counter = 1
 
     # If we're saving a video, make the video object
+    out_file, video_out = None, None
     if args.video_name:
         width = 2 ** (args.depth + 1)
         out_file = os.path.join(args.out_dir, args.video_name)
@@ -174,7 +175,9 @@ def main(args):
 
         if not args.video_only:
             cv2.imwrite(
-                os.path.join(args.out_dir, "{:05d}.png".format(global_frame_counter)),
+                os.path.join(
+                    args.out_dir, "frames", "{:05d}.png".format(global_frame_counter)
+                ),
                 img,
             )
 
