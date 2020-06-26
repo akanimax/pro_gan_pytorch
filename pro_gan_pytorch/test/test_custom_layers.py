@@ -1,48 +1,45 @@
-from typing import Any
+from test.utils import assert_almost_equal, device
 
-import numpy as np
-
-import torch as th
-from custom_layers import (EqualizedConv2d, EqualizedConvTranspose2d,
-                           EqualizedLinear)
-
-device = th.device("cuda" if th.cuda.is_available() else "cpu")
-
-
-def assert_almost_equal(x: Any, y: Any, error_margin: float = 3.0) -> None:
-    assert np.abs(x - y) <= error_margin
+import torch
+from custom_layers import (
+    EqualizedConv2d,
+    EqualizedConvTranspose2d,
+    EqualizedLinear,
+    MinibatchStdDev,
+    PixelwiseNorm,
+)
 
 
-def test_EqualizedConv2d():
-    mock_in = th.randn(32, 21, 16, 16).to(device)
+def test_EqualizedConv2d() -> None:
+    mock_in = torch.randn(32, 21, 16, 16).to(device)
     conv_block = EqualizedConv2d(21, 3, kernel_size=(3, 3), padding=1).to(device)
-    print("\nEqualized conv block:\n%s" % str(conv_block))
+    print(f"Equalized conv block: {conv_block}")
 
     mock_out = conv_block(mock_in)
 
     # check output
     assert mock_out.shape == (32, 3, 16, 16)
-    assert th.isnan(mock_out).sum().item() == 0
-    assert th.isinf(mock_out).sum().item() == 0
+    assert torch.isnan(mock_out).sum().item() == 0
+    assert torch.isinf(mock_out).sum().item() == 0
 
     # check the weight's scale
     assert_almost_equal(conv_block.weight.data.std().cpu(), 1, error_margin=1e-1)
 
 
-def test_EqualizedConvTranspose2d():
-    mock_in = th.randn(32, 21, 16, 16).to(device)
+def test_EqualizedConvTranspose2d() -> None:
+    mock_in = torch.randn(32, 21, 16, 16).to(device)
 
     conv_transpose_block = EqualizedConvTranspose2d(
         21, 3, kernel_size=(3, 3), padding=1
     ).to(device)
-    print("\nEqualized conv block:\n%s" % str(conv_transpose_block))
+    print(f"Equalized conv transpose block: {conv_transpose_block}")
 
     mock_out = conv_transpose_block(mock_in)
 
     # check output
     assert mock_out.shape == (32, 3, 16, 16)
-    assert th.isnan(mock_out).sum().item() == 0
-    assert th.isinf(mock_out).sum().item() == 0
+    assert torch.isnan(mock_out).sum().item() == 0
+    assert torch.isinf(mock_out).sum().item() == 0
 
     # check the weight's scale
     assert_almost_equal(
@@ -50,63 +47,47 @@ def test_EqualizedConvTranspose2d():
     )
 
 
-def test_EqualizedLinear():
+def test_EqualizedLinear() -> None:
     # test the forward for the first res block
-    mock_in = th.randn(32, 13).to(device)
+    mock_in = torch.randn(32, 13).to(device)
 
     lin_block = EqualizedLinear(13, 52).to(device)
-    print("\nEqualized linear block:\n%s" % str(lin_block))
+    print(f"Equalized linear block: {lin_block}")
 
     mock_out = lin_block(mock_in)
 
     # check output
     assert mock_out.shape == (32, 52)
-    assert th.isnan(mock_out).sum().item() == 0
-    assert th.isinf(mock_out).sum().item() == 0
+    assert torch.isnan(mock_out).sum().item() == 0
+    assert torch.isinf(mock_out).sum().item() == 0
 
     # check the weight's scale
     assert_almost_equal(lin_block.weight.data.std().cpu(), 1, error_margin=1e-1)
 
 
-#
-#
-# class Test_PixelwiseNorm():
-#
-#     def setUp(self):
-#         self.normalizer = cL.PixelwiseNorm()
-#
-#     def test_forward(self):
-#         mock_in = th.randn(1, 13, 1, 1).to(device)
-#         mock_out = self.normalizer(mock_in)
-#
-#         # check output
-#         self.assertEqual(mock_out.shape, mock_in.shape)
-#         self.assertEqual(th.isnan(mock_out).sum().item(), 0)
-#         self.assertEqual(th.isinf(mock_out).sum().item(), 0)
-#
-#         # we cannot comment that the norm of the output tensor
-#         # will always be less than the norm of the input tensor
-#         # so no more checking can be done
-#
-#     def tearDown(self):
-#         # delete the computational resources
-#         del self.normalizer
-#
-#
-# class Test_MinibatchStdDev():
-#
-#     def setUp(self):
-#         self.minStdD = cL.MinibatchStdDev()
-#
-#     def test_forward(self):
-#         mock_in = th.randn(1, 13, 16, 16).to(device)
-#         mock_out = self.minStdD(mock_in)
-#
-#         # check output
-#         self.assertEqual(mock_out.shape[1], mock_in.shape[1] + 1)
-#         self.assertEqual(th.isnan(mock_out).sum().item(), 0)
-#         self.assertEqual(th.isinf(mock_out).sum().item(), 0)
-#
-#     def tearDown(self):
-#         # delete the computational resources
-#         del self.minStdD
+def test_PixelwiseNorm() -> None:
+    mock_in = torch.randn(1, 13, 1, 1).to(device)
+    normalizer = PixelwiseNorm()
+    print(f"\nNormalizerBlock: {normalizer}")
+    mock_out = normalizer(mock_in)
+
+    # check output
+    assert mock_out.shape == mock_in.shape
+    assert torch.isnan(mock_out).sum().item() == 0
+    assert torch.isinf(mock_out).sum().item() == 0
+
+    # we cannot comment that the norm of the output tensor
+    # will always be less than the norm of the input tensor
+    # so no more checking can be done
+
+
+def test_MinibatchStdDev() -> None:
+    mock_in = torch.randn(1, 13, 16, 16).to(device)
+    minStdD = MinibatchStdDev()
+    print(f"\nMiniBatchStdDevBlock: {minStdD}")
+    mock_out = minStdD(mock_in)
+
+    # check output
+    assert mock_out.shape[1] == mock_in.shape[1] + 1
+    assert torch.isnan(mock_out).sum().item() == 0
+    assert torch.isinf(mock_out).sum().item() == 0

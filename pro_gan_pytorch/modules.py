@@ -1,9 +1,12 @@
 import torch
-from custom_layers import (EqualizedConv2d, EqualizedConvTranspose2d,
-                           MinibatchStdDev, PixelwiseNorm)
+from custom_layers import (
+    EqualizedConv2d,
+    EqualizedConvTranspose2d,
+    MinibatchStdDev,
+    PixelwiseNorm,
+)
 from torch import Tensor
-from torch.nn import (AvgPool2d, Conv2d, ConvTranspose2d, Embedding, LeakyReLU,
-                      Module)
+from torch.nn import AvgPool2d, Conv2d, ConvTranspose2d, Embedding, LeakyReLU, Module
 from torch.nn.functional import interpolate
 
 
@@ -12,18 +15,21 @@ class GenInitialBlock(Module):
     Module implementing the initial block of the input
     Args:
         in_channels: number of input channels to the block
+        out_channels: number of output channels of the block
         use_eql: whether to use equalized learning rate
     """
 
-    def __init__(self, in_channels: int, use_eql: bool) -> None:
+    def __init__(self, in_channels: int, out_channels: int, use_eql: bool) -> None:
         super(GenInitialBlock, self).__init__()
         self.use_eql = use_eql
 
         ConvBlock = EqualizedConv2d if use_eql else Conv2d
         ConvTransposeBlock = EqualizedConvTranspose2d if use_eql else ConvTranspose2d
 
-        self.conv_1 = ConvTransposeBlock(in_channels, in_channels, (4, 4), bias=True)
-        self.conv_2 = ConvBlock(in_channels, in_channels, (3, 3), padding=1, bias=True)
+        self.conv_1 = ConvTransposeBlock(in_channels, out_channels, (4, 4), bias=True)
+        self.conv_2 = ConvBlock(
+            out_channels, out_channels, (3, 3), padding=1, bias=True
+        )
         self.pixNorm = PixelwiseNorm()
         self.lrelu = LeakyReLU(0.2)
 

@@ -127,7 +127,7 @@ def main(args):
     :param args: parsed commandline arguments
     :return: None
     """
-    from pro_gan_pytorch.PRO_GAN import Generator
+    from networks import Generator
 
     # create generator object:
     print("Creating a generator object ...")
