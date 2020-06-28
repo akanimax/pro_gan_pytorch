@@ -1,10 +1,19 @@
+from typing import Any, Dict, Optional
+
 import numpy as np
 
 import torch as th
-from custom_layers import EqualizedConv2d
-from modules import GenGeneralConvBlock, GenInitialBlock
+from .custom_layers import EqualizedConv2d
+from .modules import (
+    ConDisFinalBlock,
+    DisFinalBlock,
+    DisGeneralConvBlock,
+    GenGeneralConvBlock,
+    GenInitialBlock,
+)
+from torch import Tensor
 from torch.nn import Conv2d, ModuleList
-from torch.nn.functional import interpolate
+from torch.nn.functional import avg_pool2d, interpolate
 
 
 def nf(
@@ -54,6 +63,7 @@ class Generator(th.nn.Module):
         # object state:
         self.depth = depth
         self.latent_size = latent_size
+        self.num_channels = num_channels
         self.use_eql = use_eql
 
         ConvBlock = EqualizedConv2d if use_eql else Conv2d
@@ -71,7 +81,7 @@ class Generator(th.nn.Module):
             ]
         )
 
-    def forward(self, x, depth, alpha):
+    def forward(self, x: Tensor, depth: int, alpha: float) -> Tensor:
         """
         forward pass of the Generator
         Args:
@@ -95,208 +105,112 @@ class Generator(th.nn.Module):
             y = (alpha * straight) + ((1 - alpha) * residual)
         return y
 
+    def get_save_info(self) -> Dict[str, Any]:
+        return {
+            "conf": {
+                "depth": self.depth,
+                "num_channels": self.num_channels,
+                "latent_size": self.latent_size,
+                "use_eql": self.use_eql,
+            },
+            "state_dict": self.state_dict(),
+        }
+
 
 class Discriminator(th.nn.Module):
-    """ Discriminator of the GAN """
+    """
+    Discriminator of the GAN
+    Args:
+        depth: depth of the discriminator. log_2(resolution)
+        num_channels: number of channels of the input images (Default = 3 for RGB)
+        latent_size: latent size of the final layer
+        use_eql: whether to use the equalized learning rate
+        num_classes: number of classes for a conditional discriminator (Default = None)
+                     meaning unconditional discriminator
+    """
 
-    def __init__(self, height=7, feature_size=512, use_eql=True):
-        """
-        constructor for the class
-        :param height: total height of the discriminator (Must be equal to the Generator depth)
-        :param feature_size: size of the deepest features extracted
-                             (Must be equal to Generator latent_size)
-        :param use_eql: whether to use equalized learning rate
-        """
-        from torch.nn import ModuleList, AvgPool2d
-        from modules import DisGeneralConvBlock
-        from modules import DisFinalBlock
-
-        super(Discriminator, self).__init__()
-
-        assert feature_size != 0 and (
-            (feature_size & (feature_size - 1)) == 0
-        ), "latent size not a power of 2"
-        if height >= 4:
-            assert feature_size >= np.power(
-                2, height - 4
-            ), "feature size cannot be produced"
-
-        # create state of the object
+    def __init__(
+        self,
+        depth: int = 7,
+        num_channels: int = 3,
+        latent_size: int = 512,
+        use_eql: bool = True,
+        num_classes: Optional[int] = None,
+    ) -> None:
+        super().__init__()
+        self.depth = depth
+        self.num_channels = num_channels
+        self.latent_size = latent_size
         self.use_eql = use_eql
-        self.height = height
-        self.feature_size = feature_size
-
-        self.final_block = DisFinalBlock(self.feature_size, use_eql=self.use_eql)
-
-        # create a module list of the other required general convolution blocks
-        self.layers = ModuleList([])  # initialize to empty list
-
-        # create the fromRGB layers for various inputs:
-        if self.use_eql:
-            from pro_gan_pytorch.custom_layers import EqualizedConv2d
-
-            self.fromRGB = lambda out_channels: EqualizedConv2d(
-                3, out_channels, (1, 1), bias=True
-            )
-        else:
-            from torch.nn import Conv2d
-
-            self.fromRGB = lambda out_channels: Conv2d(
-                3, out_channels, (1, 1), bias=True
-            )
-
-        self.rgb_to_features = ModuleList([self.fromRGB(self.feature_size)])
-
-        # create the remaining layers
-        for i in range(self.height - 1):
-            if i > 2:
-                layer = DisGeneralConvBlock(
-                    int(self.feature_size // np.power(2, i - 2)),
-                    int(self.feature_size // np.power(2, i - 3)),
-                    use_eql=self.use_eql,
-                )
-                rgb = self.fromRGB(int(self.feature_size // np.power(2, i - 2)))
-            else:
-                layer = DisGeneralConvBlock(
-                    self.feature_size, self.feature_size, use_eql=self.use_eql
-                )
-                rgb = self.fromRGB(self.feature_size)
-
-            self.layers.append(layer)
-            self.rgb_to_features.append(rgb)
-
-        # register the temporary downSampler
-        self.temporaryDownsampler = AvgPool2d(2)
-
-    def forward(self, x, height, alpha):
-        """
-        forward pass of the discriminator
-        :param x: input to the network
-        :param height: current height of operation (Progressive GAN)
-        :param alpha: current value of alpha for fade-in
-        :return: out => raw prediction values (WGAN-GP)
-        """
-
-        assert height < self.height, "Requested output depth cannot be produced"
-
-        if height > 0:
-            residual = self.rgb_to_features[height - 1](self.temporaryDownsampler(x))
-
-            straight = self.layers[height - 1](self.rgb_to_features[height](x))
-
-            y = (alpha * straight) + ((1 - alpha) * residual)
-
-            for block in reversed(self.layers[: height - 1]):
-                y = block(y)
-        else:
-            y = self.rgb_to_features[0](x)
-
-        out = self.final_block(y)
-
-        return out
-
-
-class ConditionalDiscriminator(th.nn.Module):
-    """ Discriminator of the GAN """
-
-    def __init__(self, num_classes, height=7, feature_size=512, use_eql=True):
-        """
-        constructor for the class
-        :param num_classes: number of classes for conditional discrimination
-        :param height: total height of the discriminator (Must be equal to the Generator depth)
-        :param feature_size: size of the deepest features extracted
-                             (Must be equal to Generator latent_size)
-        :param use_eql: whether to use equalized learning rate
-        """
-        from torch.nn import ModuleList, AvgPool2d
-        from modules import DisGeneralConvBlock
-        from modules import ConDisFinalBlock
-
-        super(ConditionalDiscriminator, self).__init__()
-
-        assert feature_size != 0 and (
-            (feature_size & (feature_size - 1)) == 0
-        ), "latent size not a power of 2"
-        if height >= 4:
-            assert feature_size >= np.power(
-                2, height - 4
-            ), "feature size cannot be produced"
-
-        # create state of the object
-        self.use_eql = use_eql
-        self.height = height
-        self.feature_size = feature_size
         self.num_classes = num_classes
+        self.conditional = num_classes is not None
 
-        self.final_block = ConDisFinalBlock(
-            self.feature_size, self.num_classes, use_eql=self.use_eql
+        ConvBlock = EqualizedConv2d if use_eql else Conv2d
+
+        if self.conditional:
+            self.layers = [ConDisFinalBlock(nf(1), latent_size, num_classes, use_eql)]
+        else:
+            self.layers = [DisFinalBlock(nf(1), latent_size, use_eql)]
+
+        for stage in range(1, depth - 1):
+            self.layers.insert(
+                0, DisGeneralConvBlock(nf(stage + 1), nf(stage), use_eql)
+            )
+        self.layers = ModuleList(self.layers)
+        self.from_rgb = ModuleList(
+            reversed(
+                [
+                    ConvBlock(num_channels, nf(stage), kernel_size=(1, 1))
+                    for stage in range(1, depth)
+                ]
+            )
         )
 
-        # create a module list of the other required general convolution blocks
-        self.layers = ModuleList([])  # initialize to empty list
-
-        # create the fromRGB layers for various inputs:
-        if self.use_eql:
-            from pro_gan_pytorch.custom_layers import EqualizedConv2d
-
-            self.fromRGB = lambda out_channels: EqualizedConv2d(
-                3, out_channels, (1, 1), bias=True
-            )
-        else:
-            from torch.nn import Conv2d
-
-            self.fromRGB = lambda out_channels: Conv2d(
-                3, out_channels, (1, 1), bias=True
-            )
-
-        self.rgb_to_features = ModuleList([self.fromRGB(self.feature_size)])
-
-        # create the remaining layers
-        for i in range(self.height - 1):
-            if i > 2:
-                layer = DisGeneralConvBlock(
-                    int(self.feature_size // np.power(2, i - 2)),
-                    int(self.feature_size // np.power(2, i - 3)),
-                    use_eql=self.use_eql,
-                )
-                rgb = self.fromRGB(int(self.feature_size // np.power(2, i - 2)))
-            else:
-                layer = DisGeneralConvBlock(
-                    self.feature_size, self.feature_size, use_eql=self.use_eql
-                )
-                rgb = self.fromRGB(self.feature_size)
-
-            self.layers.append(layer)
-            self.rgb_to_features.append(rgb)
-
-        # register the temporary downSampler
-        self.temporaryDownsampler = AvgPool2d(2)
-
-    def forward(self, x, labels, height, alpha):
+    def forward(
+        self, x: Tensor, depth: int, alpha: float, labels: Optional[Tensor] = None
+    ) -> Tensor:
         """
         forward pass of the discriminator
-        :param x: input to the network
-        :param labels: labels required for conditional discrimination
-                       note that these are pure integer labels of shape [B x 1]
-        :param height: current height of operation (Progressive GAN)
-        :param alpha: current value of alpha for fade-in
-        :return: out => raw prediction values
+        Args:
+            x: input to the network
+            depth: current depth of operation (Progressive GAN)
+            alpha: current value of alpha for fade-in
+            labels: labels for conditional discriminator (Default = None)
+                    shape => (Batch_size,) shouldn't be a column vector
+
+        Returns: raw discriminator scores
         """
+        assert (
+            depth <= self.depth
+        ), f"Requested output depth {depth} cannot be evaluated"
 
-        assert height < self.height, "Requested output depth cannot be produced"
+        if self.conditional:
+            assert labels is not None, "Conditional discriminator required labels"
 
-        if height > 0:
-            residual = self.rgb_to_features[height - 1](self.temporaryDownsampler(x))
-
-            straight = self.layers[height - 1](self.rgb_to_features[height](x))
-
+        if depth > 2:
+            residual = self.from_rgb[-(depth - 2)](
+                avg_pool2d(x, kernel_size=2, stride=2)
+            )
+            straight = self.layers[-(depth - 1)](self.from_rgb[-(depth - 1)](x))
             y = (alpha * straight) + ((1 - alpha) * residual)
-
-            for block in reversed(self.layers[: height - 1]):
-                y = block(y)
+            for layer_block in self.layers[-(depth - 2) : -1]:
+                y = layer_block(y)
         else:
-            y = self.rgb_to_features[0](x)
+            y = self.from_rgb[-1](x)
+        if self.conditional:
+            y = self.layers[-1](y, labels)
+        else:
+            y = self.layers[-1](y)
+        return y
 
-        out = self.final_block(y, labels)
-
-        return out
+    def get_save_info(self) -> Dict[str, Any]:
+        return {
+            "conf": {
+                "depth": self.depth,
+                "num_channels": self.num_channels,
+                "latent_size": self.latent_size,
+                "use_eql": self.use_eql,
+                "num_classes": self.num_classes,
+            },
+            "state_dict": self.state_dict(),
+        }

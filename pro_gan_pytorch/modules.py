@@ -1,5 +1,5 @@
 import torch
-from custom_layers import (
+from .custom_layers import (
     EqualizedConv2d,
     EqualizedConvTranspose2d,
     MinibatchStdDev,
@@ -35,6 +35,7 @@ class GenInitialBlock(Module):
 
     def forward(self, x: Tensor) -> Tensor:
         y = torch.unsqueeze(torch.unsqueeze(x, -1), -1)
+        y = self.pixNorm(y)  # normalize the latents to hypersphere
         y = self.lrelu(self.conv_1(y))
         y = self.lrelu(self.conv_2(y))
         y = self.pixNorm(y)
@@ -81,9 +82,10 @@ class DisFinalBlock(torch.nn.Module):
         use_eql: whether to use equalized learning rate
     """
 
-    def __init__(self, in_channels: int, use_eql: bool) -> None:
+    def __init__(self, in_channels: int, out_channels: int, use_eql: bool) -> None:
         super(DisFinalBlock, self).__init__()
         self.in_channels = in_channels
+        self.out_channels = out_channels
         self.use_eql = use_eql
 
         ConvBlock = EqualizedConv2d if use_eql else Conv2d
@@ -91,8 +93,8 @@ class DisFinalBlock(torch.nn.Module):
         self.conv_1 = ConvBlock(
             in_channels + 1, in_channels, (3, 3), padding=1, bias=True
         )
-        self.conv_2 = ConvBlock(in_channels, in_channels, (4, 4), bias=True)
-        self.conv_3 = ConvBlock(in_channels, 1, (1, 1), bias=True)
+        self.conv_2 = ConvBlock(in_channels, out_channels, (4, 4), bias=True)
+        self.conv_3 = ConvBlock(out_channels, 1, (1, 1), bias=True)
         self.batch_discriminator = MinibatchStdDev()
         self.lrelu = LeakyReLU(0.2)
 
@@ -114,9 +116,12 @@ class ConDisFinalBlock(torch.nn.Module):
             use_eql: whether to use equalized learning rate
     """
 
-    def __init__(self, in_channels: int, num_classes: int, use_eql: bool) -> None:
+    def __init__(
+        self, in_channels: int, out_channels: int, num_classes: int, use_eql: bool
+    ) -> None:
         super(ConDisFinalBlock, self).__init__()
         self.in_channels = in_channels
+        self.out_channels = out_channels
         self.num_classes = num_classes
         self.use_eql = use_eql
 
@@ -125,24 +130,18 @@ class ConDisFinalBlock(torch.nn.Module):
         self.conv_1 = ConvBlock(
             in_channels + 1, in_channels, (3, 3), padding=1, bias=True
         )
-        self.conv_2 = ConvBlock(in_channels, in_channels, (4, 4), bias=True)
-        # final conv layer emulates a fully connected layer
-        self.conv_3 = ConvBlock(in_channels, 1, (1, 1), bias=True)
+        self.conv_2 = ConvBlock(in_channels, out_channels, (4, 4), bias=True)
+        self.conv_3 = ConvBlock(out_channels, 1, (1, 1), bias=True)
 
         # we also need an embedding matrix for the label vectors
-        self.label_embedder = Embedding(num_classes, in_channels, max_norm=1)
+        self.label_embedder = Embedding(num_classes, out_channels, max_norm=1)
         self.batch_discriminator = MinibatchStdDev()
         self.lrelu = LeakyReLU(0.2)
 
     def forward(self, x: Tensor, labels: Tensor) -> Tensor:
-        # minibatch_std_dev layer
-        y = self.batch_discriminator(x)  # [B x C x 4 x 4]
-
-        # perform the forward pass
-        y = self.lrelu(self.conv_1(y))  # [B x C x 4 x 4]
-
-        # obtain the computed features
-        y = self.lrelu(self.conv_2(y))  # [B x C x 1 x 1]
+        y = self.batch_discriminator(x)
+        y = self.lrelu(self.conv_1(y))
+        y = self.lrelu(self.conv_2(y))
 
         # embed the labels
         labels = self.label_embedder(labels)  # [B x C]

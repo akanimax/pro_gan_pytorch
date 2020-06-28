@@ -10,9 +10,10 @@ from scipy.ndimage import gaussian_filter
 from tqdm import tqdm
 
 import torch as th
+# turn fast mode on
+from image_utils import adjust_dynamic_range
 from torch.backends import cudnn
 
-# turn fast mode on
 cudnn.benchmark = True
 
 # define the device for the training script
@@ -103,16 +104,6 @@ def parse_arguments():
     args = parser.parse_args()
 
     return args
-
-
-def adjust_dynamic_range(data, drange_in=(-1, 1), drange_out=(0, 1)):
-    if drange_in != drange_out:
-        scale = (np.float32(drange_out[1]) - np.float32(drange_out[0])) / (
-            np.float32(drange_in[1]) - np.float32(drange_in[0])
-        )
-        bias = np.float32(drange_out[0]) - np.float32(drange_in[0]) * scale
-        data = data * scale + bias
-    return th.clamp(data, min=0, max=1)
 
 
 def get_image(gen, point, depth, alpha):
