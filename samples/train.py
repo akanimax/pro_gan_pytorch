@@ -8,10 +8,10 @@ import wandb
 from pro_gan_pytorch.data_tools import ImageDirectoryDataset, get_transform
 from pro_gan_pytorch.gan import ProGAN
 from pro_gan_pytorch.networks import Discriminator, Generator
-
-# turn fast mode on
+from pro_gan_pytorch.utils import str2bool
 from torch.backends import cudnn
 
+# turn fast mode on
 cudnn.benchmark = True
 
 # define the device for the training script
@@ -52,7 +52,7 @@ def parse_arguments():
     parser.add_argument(
         "--rec_dir",
         action="store",
-        type=bool,
+        type=str2bool,
         default=True,
         help="whether images stored under one folder or has a recursive dir structure",
         required=False,
@@ -61,7 +61,7 @@ def parse_arguments():
     parser.add_argument(
         "--flip_horizontal",
         action="store",
-        type=bool,
+        type=str2bool,
         default=True,
         help="whether to apply mirror augmentation",
         required=False,
@@ -97,7 +97,7 @@ def parse_arguments():
     parser.add_argument(
         "--use_eql",
         action="store",
-        type=bool,
+        type=str2bool,
         default=True,
         help="whether to use the equalized learning rate",
         required=False,
@@ -106,7 +106,7 @@ def parse_arguments():
     parser.add_argument(
         "--use_ema",
         action="store",
-        type=bool,
+        type=str2bool,
         default=True,
         help="whether to use the exponential moving averages",
         required=False,
@@ -164,8 +164,10 @@ def main(args):
 
     Returns: None
     """
-    wandb.init(project="pro_gan_pytorch", name=args.run_name)
     print(f"Selected arguments: {args}")
+    wandb.init(project="pro_gan_pytorch", name=args.run_name)
+    wandb.config.update(args)
+
     generator = Generator(
         depth=args.depth,
         num_channels=args.num_channels,

@@ -10,8 +10,9 @@ from scipy.ndimage import gaussian_filter
 from tqdm import tqdm
 
 import torch as th
+
 # turn fast mode on
-from image_utils import adjust_dynamic_range
+from utils import adjust_dynamic_range
 from torch.backends import cudnn
 
 cudnn.benchmark = True

@@ -5,10 +5,12 @@ from typing import Any, Callable, List, Optional, Tuple
 import numpy as np
 from PIL import Image
 
-from .image_utils import adjust_dynamic_range
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
-from torchvision.transforms import Compose, RandomHorizontalFlip, Resize, ToTensor
+from torchvision.transforms import (Compose, RandomHorizontalFlip, Resize,
+                                    ToTensor)
+
+from .utils import adjust_dynamic_range
 
 
 class NoOp(object):

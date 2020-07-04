@@ -1,3 +1,4 @@
+import argparse
 from typing import Optional, Tuple
 
 import numpy as np
@@ -19,3 +20,14 @@ def adjust_dynamic_range(
         data = data * scale + bias
 
     return torch.clamp(data, min=drange_out[0], max=drange_out[1])
+
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ("yes", "true", "t", "y", "1"):
+        return True
+    elif v.lower() in ("no", "false", "f", "n", "0"):
+        return False
+    else:
+        raise argparse.ArgumentTypeError("Boolean value expected.")

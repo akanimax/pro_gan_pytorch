@@ -22,9 +22,9 @@ from torchvision.utils import make_grid, save_image
 
 from .custom_layers import update_average
 from .data_tools import get_data_loader
-from .image_utils import adjust_dynamic_range
 from .losses import GANLoss, WganGP
 from .networks import Discriminator, Generator
+from .utils import adjust_dynamic_range
 
 
 class ProGAN:
@@ -487,7 +487,7 @@ class ProGAN:
                 ):
                     save_file = model_dir / f"depth_{current_depth}_epoch_{epoch}.bin"
                     torch.save(self.get_save_info(gen_optim, dis_optim), save_file)
-                    wandb.save(save_file)
+                    wandb.save(str(save_file))
 
         self._toggle_all_networks("eval")
         print("Training completed ...")
