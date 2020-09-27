@@ -1,5 +1,5 @@
 """ Module contains custom layers """
-from typing import Any, List
+from typing import Any
 
 import numpy as np
 
@@ -168,22 +168,19 @@ class MinibatchStdDev(torch.nn.Module):
     Minibatch standard deviation layer for the discriminator
     Args:
         group_size: Size of each group into which the batch is split
-        num_new_features: number of additional feature maps added
     """
 
-    def __init__(self, group_size: int = 4, num_new_features: int = 1) -> None:
+    def __init__(self, group_size: int = 4) -> None:
         """
 
         Args:
             group_size: Size of each group into which the batch is split
-            num_new_features: number of additional feature maps added
         """
         super(MinibatchStdDev, self).__init__()
         self.group_size = group_size
-        self.num_new_features = num_new_features
 
     def extra_repr(self) -> str:
-        return f"group_size={self.group_size}, num_new_features={self.num_new_features}"
+        return f"group_size={self.group_size}"
 
     def forward(self, x: Tensor, alpha: float = 1e-8) -> Tensor:
         """
@@ -194,45 +191,32 @@ class MinibatchStdDev(torch.nn.Module):
         Returns: y => x appended with standard deviation constant map
         """
         batch_size, channels, height, width = x.shape
+        if batch_size > self.group_size:
+            assert batch_size % self.group_size == 0, (
+                f"batch_size {batch_size} should be "
+                f"perfectly divisible by group_size {self.group_size}"
+            )
+            group_size = self.group_size
+        else:
+            group_size = batch_size
 
-        # reshape x and create the splits of the input accordingly
-        y = torch.reshape(
-            x,
-            [
-                batch_size,
-                self.num_new_features,
-                channels // self.num_new_features,
-                height,
-                width,
-            ],
-        )
+        # reshape x into a more amenable sized tensor
+        y = torch.reshape(x, [group_size, -1, channels, height, width])
 
-        y_split = y.split(self.group_size)
-        y_list: List[Tensor] = []
-        for y in y_split:
-            group_size = y.shape[0]
+        # indicated shapes are after performing the operation
+        # [G x M x C x H x W] Subtract mean over groups
+        y = y - y.mean(dim=0, keepdim=True)
 
-            # [G x M x C' x H x W] Subtract mean over batch.
-            y = y - y.mean(dim=0, keepdim=True)
+        # [M x C x H x W] Calc standard deviation over the groups
+        y = torch.sqrt(y.square().mean(dim=0, keepdim=False) + alpha)
 
-            # [G x M x C' x H x W] Calc standard deviation over batch
-            y = torch.sqrt(y.square().mean(dim=0, keepdim=False) + alpha)
+        # [M x 1 x 1 x 1]  Take average over feature_maps and pixels.
+        y = y.mean(dim=[1, 2, 3], keepdim=True)
 
-            # [M x C' x H x W]  Take average over feature_maps and pixels.
-            y = y.mean(dim=[1, 2, 3], keepdim=True)
+        # [B x 1 x H x W]  Replicate over group and pixels
+        y = y.repeat(group_size, 1, height, width)
 
-            # [M x 1 x 1 x 1] Split channels into c channel groups
-            y = y.mean(dim=1, keepdim=False)
-
-            # [M x 1 x 1]  Replicate over group and pixels.
-            y = y.view((1, *y.shape)).repeat(group_size, 1, height, width)
-
-            # append this to the y_list:
-            y_list.append(y)
-
-        y = torch.cat(y_list, dim=0)
-
-        # [B x (N + C) x H x W]  Append as new feature_map.
+        # [B x (C + 1) x H x W]  Append as new feature_map.
         y = torch.cat([x, y], 1)
 
         # return the computed values:

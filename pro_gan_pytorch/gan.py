@@ -11,14 +11,13 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 import torch
-import wandb
 from torch import Tensor
 from torch.nn import DataParallel, Module
 from torch.nn.functional import avg_pool2d, interpolate
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import Dataset
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.utils import make_grid, save_image
+from torchvision.utils import save_image
 
 from .custom_layers import update_average
 from .data_tools import get_data_loader
@@ -55,10 +54,6 @@ class ProGAN:
 
         print(f"Generator Network: {self.gen}")
         print(f"Discriminator Network: {self.dis}")
-
-        # watch the two models in wandb
-        wandb.watch(self.gen, log="parameters")
-        wandb.watch(self.dis, log="parameters")
 
         if self.use_ema:
             # create a shadow copy of the generator
@@ -196,7 +191,11 @@ class ProGAN:
         return gen_loss.item()
 
     @staticmethod
-    def create_grid(samples: Tensor, scale_factor: int, img_file: Path,) -> None:
+    def create_grid(
+        samples: Tensor,
+        scale_factor: int,
+        img_file: Path,
+    ) -> None:
         """
         utility function to create a grid of GAN samples
         Args:
@@ -210,27 +209,6 @@ class ProGAN:
             samples = interpolate(samples, scale_factor=scale_factor)
 
         samples = adjust_dynamic_range(samples)
-        samples_for_wandb = make_grid(
-            samples, nrow=int(np.sqrt(len(samples))), padding=0
-        )
-
-        # save the samples in wandb
-        if "real_images" in str(img_file):
-            wandb.log(
-                {
-                    "Real_samples": [
-                        wandb.Image(samples_for_wandb, caption=str(img_file))
-                    ]
-                }
-            )
-        else:
-            wandb.log(
-                {
-                    "Generated_samples": [
-                        wandb.Image(samples_for_wandb, caption=str(img_file))
-                    ]
-                }
-            )
 
         # save the images:
         save_image(samples, img_file, nrow=int(np.sqrt(len(samples))), padding=0)
@@ -331,6 +309,7 @@ class ProGAN:
         Returns: None (Writes multiple files to disk)
         """
 
+        print(f"Loaded the dataset with: {len(dataset)} images ...")
         assert (self.depth - 1) == len(
             batch_sizes
         ), "batch_sizes are not compatible with depth"
@@ -353,6 +332,7 @@ class ProGAN:
         )
 
         # verbose stuff
+        print("setting up the image saving mechanism")
         model_dir, log_dir = save_dir / "models", save_dir / "logs"
         model_dir.mkdir(parents=True, exist_ok=True)
         log_dir.mkdir(parents=True, exist_ok=True)
@@ -452,13 +432,6 @@ class ProGAN:
                         summary.add_scalar(
                             "gen_loss", gen_loss, global_step=global_step
                         )
-                        wandb.log({"dis_loss": dis_loss, "gen_loss": gen_loss})
-                        wandb.log(
-                            {
-                                "dis_overflow": self.dis_overflow_count,
-                                "gen_overflow": self.gen_overflow_count,
-                            }
-                        )
                         # create a grid of samples and save it
                         resolution_dir = log_dir / str(int(2 ** current_depth))
                         resolution_dir.mkdir(exist_ok=True)
@@ -487,7 +460,6 @@ class ProGAN:
                 ):
                     save_file = model_dir / f"depth_{current_depth}_epoch_{epoch}.bin"
                     torch.save(self.get_save_info(gen_optim, dis_optim), save_file)
-                    wandb.save(str(save_file))
 
         self._toggle_all_networks("eval")
         print("Training completed ...")

@@ -1,12 +1,13 @@
 from pathlib import Path
-from test.utils import device
 
 import matplotlib.pyplot as plt
 
 import torch
-from data_tools import ImageDirectoryDataset, get_transform
-from gan import ProGAN
-from networks import Discriminator, Generator
+
+from ..data_tools import ImageDirectoryDataset, get_transform
+from ..gan import ProGAN
+from ..networks import Discriminator, Generator
+from .utils import device
 
 
 def test_pro_gan_progressive_downsample_batch() -> None:
@@ -40,19 +41,17 @@ def test_pro_gan_train() -> None:
     progan = ProGAN(Generator(depth), Discriminator(depth), device=device)
     progan.train(
         dataset=ImageDirectoryDataset(
-            Path(
-                "/media/deepstorage01/datasets_external/ffhq/images/images1024x1024/00000"
-            ),
+            Path("/media/deepstorage01/datasets_external/cifar_10/cifar/images"),
             transform=get_transform(
-                new_size=(int(2 ** depth), int(2 ** depth)), flip_horizontal=True
+                new_size=(int(2 ** depth), int(2 ** depth)), flip_horizontal=False
             ),
-            rec_dir=True,
+            rec_dir=False,
         ),
         epochs=[100 for _ in range(3)],
         batch_sizes=[256, 256, 256],
         fade_in_percentages=[50 for _ in range(3)],
         save_dir=Path("./test_train"),
-        num_samples=4,
-        feedback_factor=100,
+        num_samples=64,
+        feedback_factor=10,
     )
     print("test_finished")

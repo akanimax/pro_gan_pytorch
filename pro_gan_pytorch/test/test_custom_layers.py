@@ -1,13 +1,8 @@
-from test.utils import assert_almost_equal, device
-
 import torch
-from custom_layers import (
-    EqualizedConv2d,
-    EqualizedConvTranspose2d,
-    EqualizedLinear,
-    MinibatchStdDev,
-    PixelwiseNorm,
-)
+
+from ..custom_layers import (EqualizedConv2d, EqualizedConvTranspose2d,
+                             EqualizedLinear, MinibatchStdDev, PixelwiseNorm)
+from .utils import assert_almost_equal, device
 
 
 def test_EqualizedConv2d() -> None:
@@ -82,7 +77,7 @@ def test_PixelwiseNorm() -> None:
 
 
 def test_MinibatchStdDev() -> None:
-    mock_in = torch.randn(1, 13, 16, 16).to(device)
+    mock_in = torch.randn(16, 13, 16, 16).to(device)
     minStdD = MinibatchStdDev()
     print(f"\nMiniBatchStdDevBlock: {minStdD}")
     mock_out = minStdD(mock_in)

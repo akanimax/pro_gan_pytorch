@@ -7,8 +7,7 @@ from PIL import Image
 
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
-from torchvision.transforms import (Compose, RandomHorizontalFlip, Resize,
-                                    ToTensor)
+from torchvision.transforms import Compose, RandomHorizontalFlip, Resize, ToTensor
 
 from .utils import adjust_dynamic_range
 
@@ -43,12 +42,12 @@ def get_transform(
 
 
 class ImageDirectoryDataset(Dataset):
-    """ pyTorch Dataset wrapper for the simple case of flat directory images dataset
-        Args:
-            data_dir: directory containing all the images
-            transform: whether to apply a certain transformation to the images
-            rec_dir: whether to search all the sub-level directories for files
-                     recursively
+    """pyTorch Dataset wrapper for the simple case of flat directory images dataset
+    Args:
+        data_dir: directory containing all the images
+        transform: whether to apply a certain transformation to the images
+        rec_dir: whether to search all the sub-level directories for files
+                 recursively
     """
 
     def __init__(

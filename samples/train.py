@@ -4,7 +4,6 @@ import argparse
 from pathlib import Path
 
 import torch
-import wandb
 from pro_gan_pytorch.data_tools import ImageDirectoryDataset, get_transform
 from pro_gan_pytorch.gan import ProGAN
 from pro_gan_pytorch.networks import Discriminator, Generator
@@ -29,17 +28,10 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "run_name",
-        action="store",
-        type=str,
-        help="A name of the run for wandb tracking",
-    )
-
-    parser.add_argument(
         "train_path",
         action="store",
         type=lambda x: Path(x),
-        help="Path to the images folder for training the VAE",
+        help="Path to the images folder for training the ProGAN",
     )
 
     parser.add_argument(
@@ -165,8 +157,6 @@ def main(args):
     Returns: None
     """
     print(f"Selected arguments: {args}")
-    wandb.init(project="pro_gan_pytorch", name=args.run_name)
-    wandb.config.update(args)
 
     generator = Generator(
         depth=args.depth,

@@ -1,9 +1,9 @@
-from test.utils import device
-
 import numpy as np
 
 import torch
-from networks import Discriminator, Generator
+
+from ..networks import Discriminator, Generator
+from .utils import device
 
 
 def test_Generator() -> None:
