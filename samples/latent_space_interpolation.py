@@ -1,18 +1,20 @@
 """ script for generating samples from a trained model """
 
-import torch as th
-import numpy as np
 import argparse
 import os
-from torch.backends import cudnn
-from torchvision.utils import make_grid
-from math import sqrt, ceil
-from tqdm import tqdm
-from scipy.ndimage import gaussian_filter
-import cv2
+from math import sqrt
 
+import cv2
+import numpy as np
+from scipy.ndimage import gaussian_filter
+from tqdm import tqdm
+
+import torch as th
 
 # turn fast mode on
+from utils import adjust_dynamic_range
+from torch.backends import cudnn
+
 cudnn.benchmark = True
 
 # define the device for the training script
@@ -26,53 +28,83 @@ def parse_arguments():
     """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--generator_file", action="store", type=str,
-                        help="pretrained weights file for generator", required=True)
+    parser.add_argument(
+        "--generator_file",
+        action="store",
+        type=str,
+        help="pretrained weights file for generator",
+        required=True,
+    )
 
-    parser.add_argument("--latent_size", action="store", type=int,
-                        default=512,
-                        help="latent size for the generator")
+    parser.add_argument(
+        "--latent_size",
+        action="store",
+        type=int,
+        default=512,
+        help="latent size for the generator",
+    )
 
-    parser.add_argument("--depth", action="store", type=int,
-                        default=9,
-                        help="latent size for the generator")
+    parser.add_argument(
+        "--depth",
+        action="store",
+        type=int,
+        default=9,
+        help="latent size for the generator",
+    )
 
-    parser.add_argument("--out_depth", action="store", type=int,
-                        default=6,
-                        help="output depth of images. **Starts from 0")
+    parser.add_argument(
+        "--out_depth",
+        action="store",
+        type=int,
+        default=6,
+        help="output depth of images. **Starts from 0",
+    )
 
-    parser.add_argument("--time", action="store", type=float,
-                        default=300,
-                        help="Number of seconds for the video to make")
+    parser.add_argument(
+        "--time",
+        action="store",
+        type=float,
+        default=300,
+        help="Number of seconds for the video to make",
+    )
 
-    parser.add_argument("--fps", action="store", type=int,
-                        default=60, help="Frames per second in the video")
+    parser.add_argument(
+        "--fps",
+        action="store",
+        type=int,
+        default=60,
+        help="Frames per second in the video",
+    )
 
-    parser.add_argument("--smoothing", action="store", type=float,
-                        default=0.75, help="Smoothing amount in transition frames")
+    parser.add_argument(
+        "--smoothing",
+        action="store",
+        type=float,
+        default=0.75,
+        help="Smoothing amount in transition frames",
+    )
 
-    parser.add_argument("--out_dir", action="store", type=str,
-                        default="interp_animation_frames/",
-                        help="path to the output directory for the frames")
+    parser.add_argument(
+        "--out_dir",
+        action="store",
+        type=str,
+        default="interp_animation_frames/",
+        help="path to the output directory for the frames",
+    )
 
-    parser.add_argument("--video_only", action='store_true',
-                        help="Pass this to skip saving of individual frames.")
+    parser.add_argument(
+        "--video_only",
+        action="store_true",
+        help="Pass this to skip saving of individual frames.",
+    )
 
-    parser.add_argument("--video_name", action="store", type=str,
-                        default="", help="Filename of video")
+    parser.add_argument(
+        "--video_name", action="store", type=str, default="", help="Filename of video"
+    )
 
     args = parser.parse_args()
 
     return args
-
-
-def adjust_dynamic_range(data, drange_in=(-1, 1), drange_out=(0, 1)):
-    if drange_in != drange_out:
-        scale = (np.float32(drange_out[1]) - np.float32(drange_out[0])) / (
-            np.float32(drange_in[1]) - np.float32(drange_in[0]))
-        bias = (np.float32(drange_out[0]) - np.float32(drange_in[0]) * scale)
-        data = data * scale + bias
-    return th.clamp(data, min=0, max=1)
 
 
 def get_image(gen, point, depth, alpha):
@@ -87,13 +119,13 @@ def main(args):
     :param args: parsed commandline arguments
     :return: None
     """
-    from pro_gan_pytorch.PRO_GAN import Generator
+    from networks import Generator
 
     # create generator object:
     print("Creating a generator object ...")
     generator = th.nn.DataParallel(
-        Generator(depth=args.depth,
-                  latent_size=args.latent_size).to(device))
+        Generator(depth=args.depth, latent_size=args.latent_size).to(device)
+    )
 
     # load the trained generator weights
     print("loading the trained generator weights ...")
@@ -105,11 +137,11 @@ def main(args):
     # Let's create the animation video from the latent space interpolation
     # all latent vectors:
     all_latents = th.randn(total_frames, args.latent_size).to(device)
-    all_latents = gaussian_filter(
-        all_latents.cpu(), [args.smoothing * args.fps, 0])
+    all_latents = gaussian_filter(all_latents.cpu(), [args.smoothing * args.fps, 0])
     all_latents = th.from_numpy(all_latents)
-    all_latents = all_latents / all_latents.norm(dim=-1, keepdim=True) \
-        * (sqrt(args.latent_size))
+    all_latents = (
+        all_latents / all_latents.norm(dim=-1, keepdim=True) * (sqrt(args.latent_size))
+    )
 
     # create output directory
     os.makedirs(args.out_dir, exist_ok=True)
@@ -117,11 +149,13 @@ def main(args):
     global_frame_counter = 1
 
     # If we're saving a video, make the video object
-    if(args.video_name):
-        width = 2**(args.depth+1)
+    out_file, video_out = None, None
+    if args.video_name:
+        width = 2 ** (args.depth + 1)
         out_file = os.path.join(args.out_dir, args.video_name)
-        video_out = cv2.VideoWriter(args.video_name, cv2.VideoWriter_fourcc(
-            *'mp4v'), args.fps, (width, width))
+        video_out = cv2.VideoWriter(
+            args.video_name, cv2.VideoWriter_fourcc(*"mp4v"), args.fps, (width, width)
+        )
 
     # Run the main loop for the interpolation:
     print("Generating the video frames ...")
@@ -132,11 +166,15 @@ def main(args):
         img = get_image(generator, latent, args.out_depth, 1) * 255
 
         if not args.video_only:
-            cv2.imwrite(os.path.join(
-                args.out_dir, "{:05d}.png".format(global_frame_counter)), img)
+            cv2.imwrite(
+                os.path.join(
+                    args.out_dir, "frames", "{:05d}.png".format(global_frame_counter)
+                ),
+                img,
+            )
 
         # Make an image of unsigned 8-bit integers for OpenCV
-        if(args.video_name):
+        if args.video_name:
             img_int = img.astype(np.uint8)
             video_out.write(img_int)
 
@@ -147,8 +185,8 @@ def main(args):
     if not args.video_only:
         print("Video frames have been generated at:", args.out_dir)
 
-    if(args.video_name):
-        print('Video saved to {}'.format(out_file))
+    if args.video_name:
+        print("Video saved to {}".format(out_file))
         video_out.release()
 
 

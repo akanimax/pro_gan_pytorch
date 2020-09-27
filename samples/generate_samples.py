@@ -1,14 +1,16 @@
 """ Generate single image samples from a particular depth of a model """
 
 import argparse
-import torch as th
-import numpy as np
 import os
-from torch.backends import cudnn
-from pro_gan_pytorch.PRO_GAN import Generator
-from torch.nn.functional import interpolate
+
+import numpy as np
 from scipy.misc import imsave
 from tqdm import tqdm
+
+import torch as th
+from networks import Generator
+from torch.backends import cudnn
+from torch.nn.functional import interpolate
 
 # turn on the fast GPU processing mode on
 cudnn.benchmark = True
