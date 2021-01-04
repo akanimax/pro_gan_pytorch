@@ -12,7 +12,7 @@ from .modules import (
     GenInitialBlock,
 )
 from torch import Tensor
-from torch.nn import Conv2d, ModuleList
+from torch.nn import Conv2d, LeakyReLU, ModuleList, Sequential
 from torch.nn.functional import avg_pool2d, interpolate
 
 
@@ -160,7 +160,10 @@ class Discriminator(th.nn.Module):
         self.from_rgb = ModuleList(
             reversed(
                 [
-                    ConvBlock(num_channels, nf(stage), kernel_size=(1, 1))
+                    Sequential(
+                        ConvBlock(num_channels, nf(stage), kernel_size=(1, 1)),
+                        LeakyReLU(0.2)
+                        )
                     for stage in range(1, depth)
                 ]
             )
