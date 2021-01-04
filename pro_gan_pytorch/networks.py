@@ -161,8 +161,7 @@ class Discriminator(th.nn.Module):
             reversed(
                 [
                     Sequential(
-                        ConvBlock(num_channels, nf(
-                        stage), kernel_size=(1, 1)),
+                        ConvBlock(num_channels, nf(stage), kernel_size=(1, 1)),
                         LeakyReLU(0.2)
                         )
                     for stage in range(1, depth)
