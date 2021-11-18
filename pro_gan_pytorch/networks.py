@@ -36,7 +36,9 @@ def nf(
     """
     return int(
         np.clip(
-            int(fmap_base / (2.0 ** (stage * fmap_decay))), fmap_min, fmap_max,
+            int(fmap_base / (2.0 ** (stage * fmap_decay))),
+            fmap_min,
+            fmap_max,
         ).item()
     )
 
@@ -45,7 +47,7 @@ class Generator(th.nn.Module):
     """
     Generator Module (block) of the GAN network
     Args:
-        depth: required depth of the Network
+        depth: required depth of the Network (**starts from 2)
         num_channels: number of output channels (default = 3 for RGB)
         latent_size: size of the latent manifold
         use_eql: whether to use equalized learning rate
@@ -162,8 +164,8 @@ class Discriminator(th.nn.Module):
                 [
                     Sequential(
                         ConvBlock(num_channels, nf(stage), kernel_size=(1, 1)),
-                        LeakyReLU(0.2)
-                        )
+                        LeakyReLU(0.2),
+                    )
                     for stage in range(1, depth)
                 ]
             )

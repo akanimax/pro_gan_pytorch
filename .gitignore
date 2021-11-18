@@ -105,3 +105,6 @@ venv.bak/
 
 # ignore pycharm data
 .idea/
+
+# ignore the virtual environment for the project as well
+pro_gan_pytorch_env/

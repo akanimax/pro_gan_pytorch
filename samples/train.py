@@ -1,4 +1,4 @@
-""" script for generating samples from a trained model """
+""" script for training a ProGAN (Progressively grown gan model) """
 
 import argparse
 from pathlib import Path
@@ -27,124 +27,49 @@ def parse_arguments():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument(
-        "train_path",
-        action="store",
-        type=lambda x: Path(x),
-        help="Path to the images folder for training the ProGAN",
-    )
+    # fmt: off
+    # Required arguments (input path to the data and the output directory for saving training assets)
+    parser.add_argument("train_path", action="store", type=Path,
+                        help="Path to the images folder for training the ProGAN")
+    parser.add_argument("output_dir", action="store", type=Path,
+                        help="Path to the directory for saving the logs and models")
 
-    parser.add_argument(
-        "output_dir",
-        action="store",
-        type=lambda x: Path(x),
-        help="Path to the directory for saving the logs and models",
-    )
+    # Optional arguments
+    # dataset related options:
+    parser.add_argument("--rec_dir", action="store", type=str2bool, default=True, required=False,
+                        help="whether images stored under one folder or has a recursive dir structure")
+    parser.add_argument("--flip_horizontal", action="store", type=str2bool, default=True, required=False,
+                        help="whether to apply mirror augmentation")
 
-    parser.add_argument(
-        "--rec_dir",
-        action="store",
-        type=str2bool,
-        default=True,
-        help="whether images stored under one folder or has a recursive dir structure",
-        required=False,
-    )
+    # model architecture related options:
+    parser.add_argument("--depth", action="store", type=int, default=10, required=False,
+                        help="depth of the generator and the discriminator")
+    parser.add_argument("--num_channels", action="store", type=int, default=3, required=False,
+                        help="number of channels of in the image data")
+    parser.add_argument("--latent_size", action="store", type=int, default=512, required=False,
+                        help="latent size of the generator and the discriminator")
 
-    parser.add_argument(
-        "--flip_horizontal",
-        action="store",
-        type=str2bool,
-        default=True,
-        help="whether to apply mirror augmentation",
-        required=False,
-    )
-
-    parser.add_argument(
-        "--depth",
-        action="store",
-        type=int,
-        default=10,
-        help="depth of the generator and the discriminator",
-        required=False,
-    )
-
-    parser.add_argument(
-        "--num_channels",
-        action="store",
-        type=int,
-        default=3,
-        help="number of channels of in the image data",
-        required=False,
-    )
-
-    parser.add_argument(
-        "--latent_size",
-        action="store",
-        type=int,
-        default=512,
-        help="latent size of the generator and the discriminator",
-        required=False,
-    )
-
-    parser.add_argument(
-        "--use_eql",
-        action="store",
-        type=str2bool,
-        default=True,
-        help="whether to use the equalized learning rate",
-        required=False,
-    )
-
-    parser.add_argument(
-        "--use_ema",
-        action="store",
-        type=str2bool,
-        default=True,
-        help="whether to use the exponential moving averages",
-        required=False,
-    )
-
-    parser.add_argument(
-        "--ema_beta",
-        action="store",
-        type=float,
-        default=0.999,
-        help="value of the ema beta",
-        required=False,
-    )
-
-    parser.add_argument(
-        "--epochs",
-        action="store",
-        type=int,
-        required=False,
-        nargs="+",
-        default=[172 for _ in range(9)],
-        help="Mapper network configuration",
-    )
-
-    parser.add_argument(
-        "--batch_sizes",
-        action="store",
-        type=int,
-        required=False,
-        nargs="+",
-        default=[512, 256, 128, 64, 32, 16, 16, 16, 16],
-        help="Mapper network configuration",
-    )
-
-    parser.add_argument(
-        "--fade_in_percentages",
-        action="store",
-        type=int,
-        required=False,
-        nargs="+",
-        default=[50 for _ in range(9)],
-        help="Mapper network configuration",
-    )
+    # training related options:
+    parser.add_argument("--use_eql", action="store", type=str2bool, default=True, required=False,
+                        help="whether to use the equalized learning rate")
+    parser.add_argument("--use_ema", action="store", type=str2bool, default=True, required=False,
+                        help="whether to use the exponential moving averages")
+    parser.add_argument("--ema_beta", action="store", type=float, default=0.999, required=False,
+                        help="value of the ema beta")
+    parser.add_argument("--epochs", action="store", type=int, required=False, nargs="+",
+                        default=[5 for _ in range(9)],
+                        help="number of epochs over the training dataset per stage")
+    parser.add_argument("--batch_sizes", action="store", type=int, required=False, nargs="+",
+                        default=[32, 24, 16, 8, 8, 8, 4, 2, 2],
+                        help="batch size used for training the model per stage")
+    parser.add_argument("--fade_in_percentages", action="store", type=int, required=False, nargs="+",
+                        default=[50 for _ in range(9)],
+                        help="number of iterations for which fading of new layer happens. Measured in %")
+    parser.add_argument("--num_feedback_samples", action="store", type=int, required=False, default=4,
+                        help="number of samples used for fixed seed gan feedback")
+    # fmt: on
 
     args = parser.parse_args()
-
     return args
 
 
@@ -194,6 +119,7 @@ def main(args):
         save_dir=args.output_dir,
         feedback_factor=10,
         checkpoint_factor=20,
+        num_samples=args.num_feedback_samples,
     )
 
 
