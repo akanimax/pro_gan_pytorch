@@ -57,10 +57,10 @@ def parse_arguments():
     parser.add_argument("--ema_beta", action="store", type=float, default=0.999, required=False,
                         help="value of the ema beta")
     parser.add_argument("--epochs", action="store", type=int, required=False, nargs="+",
-                        default=[5 for _ in range(9)],
+                        default=[600 for _ in range(9)],
                         help="number of epochs over the training dataset per stage")
     parser.add_argument("--batch_sizes", action="store", type=int, required=False, nargs="+",
-                        default=[32, 24, 16, 8, 8, 8, 4, 2, 2],
+                        default=[32, 32, 32, 32, 16, 16, 8, 4, 2],
                         help="batch size used for training the model per stage")
     parser.add_argument("--fade_in_percentages", action="store", type=int, required=False, nargs="+",
                         default=[50 for _ in range(9)],
