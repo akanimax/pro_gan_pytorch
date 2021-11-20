@@ -57,7 +57,7 @@ def parse_arguments():
     parser.add_argument("--ema_beta", action="store", type=float, default=0.999, required=False,
                         help="value of the ema beta")
     parser.add_argument("--epochs", action="store", type=int, required=False, nargs="+",
-                        default=[600 for _ in range(9)],
+                        default=[42 for _ in range(9)],
                         help="number of epochs over the training dataset per stage")
     parser.add_argument("--batch_sizes", action="store", type=int, required=False, nargs="+",
                         default=[32, 32, 32, 32, 16, 16, 8, 4, 2],
@@ -67,6 +67,10 @@ def parse_arguments():
                         help="number of iterations for which fading of new layer happens. Measured in %")
     parser.add_argument("--num_feedback_samples", action="store", type=int, required=False, default=4,
                         help="number of samples used for fixed seed gan feedback")
+    parser.add_argument("--feedback_factor", action="store", type=int, required=False, default=10,
+                        help="number of feedback logs written per epoch")
+    parser.add_argument("--checkpoint_factor", action="store", type=int, required=False, default=10,
+                        help="number of epochs after which a model snapshot is saved per training stage")
     # fmt: on
 
     args = parser.parse_args()
@@ -117,8 +121,8 @@ def main(args):
         batch_sizes=args.batch_sizes,
         fade_in_percentages=args.fade_in_percentages,
         save_dir=args.output_dir,
-        feedback_factor=10,
-        checkpoint_factor=20,
+        feedback_factor=args.feedback_factor,
+        checkpoint_factor=args.checkpoint_factor,
         num_samples=args.num_feedback_samples,
     )
 

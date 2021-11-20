@@ -302,10 +302,6 @@ class ProGAN:
             feedback_factor: number of logs per epoch
             save_dir: directory for saving the models (.bin files)
             checkpoint_factor: save model after these many epochs.
-                               Note that only one model is stored per resolution.
-                               during one resolution, the checkpoint will be
-                               updated (Rewritten) according to this factor
-
         Returns: None (Writes multiple files to disk)
         """
 
@@ -418,7 +414,7 @@ class ProGAN:
                     # provide a loss feedback
                     if (
                         i % max(int(total_batches / max(feedback_factor, 1)), 1) == 0
-                        or i == 1
+                        or i == 1 or i == total_batches
                     ):
                         elapsed = time.time() - global_time
                         elapsed = str(datetime.timedelta(seconds=elapsed))
