@@ -7,7 +7,7 @@ import torch
 from pro_gan_pytorch.data_tools import ImageDirectoryDataset, get_transform
 from pro_gan_pytorch.gan import ProGAN
 from pro_gan_pytorch.networks import Discriminator, Generator
-from pro_gan_pytorch.utils import str2bool
+from pro_gan_pytorch.utils import str2bool, str2GANLoss
 from torch.backends import cudnn
 
 # turn fast mode on
@@ -62,11 +62,28 @@ def parse_arguments():
     parser.add_argument("--batch_sizes", action="store", type=int, required=False, nargs="+",
                         default=[32, 32, 32, 32, 16, 16, 8, 4, 2],
                         help="batch size used for training the model per stage")
+    parser.add_argument("--batch_repeats", action="store", type=int, required=False, default=4,
+                        help="number of G and D steps executed per training iteration")
     parser.add_argument("--fade_in_percentages", action="store", type=int, required=False, nargs="+",
                         default=[50 for _ in range(9)],
                         help="number of iterations for which fading of new layer happens. Measured in %")
+    parser.add_argument("--loss_fn", action="store", type=str2GANLoss, required=False, default="wgan_gp",
+                        help="loss function used for training the GAN. "
+                             "Current options: [wgan_gp, standard_gan]")
+    parser.add_argument("--g_lrate", action="store", type=float, required=False, default=0.003,
+                        help="learning rate used by the generator")
+    parser.add_argument("--d_lrate", action="store", type=float, required=False, default=0.003,
+                        help="learning rate used by the discriminator")
     parser.add_argument("--num_feedback_samples", action="store", type=int, required=False, default=4,
                         help="number of samples used for fixed seed gan feedback")
+    parser.add_argument("--start_depth", action="store", type=int, required=False, default=2,
+                        help="resolution to start the training from. "
+                             "Example 2 --> (4x4) | 3 --> (8x8) ... | 10 --> (1024x1024)"
+                             "Note that this is not a way to restart a partial training. "
+                             "Resuming is not supported currently. But will be soon.")
+    parser.add_argument("--num_workers", action="store", type=int, required=False, default=3,
+                        help="number of dataloader subprocesses. It's a pytorch thing, you can ignore it ;)."
+                             " Leave it to the default value unless things are weirdly slow for you.")
     parser.add_argument("--feedback_factor", action="store", type=int, required=False, default=10,
                         help="number of feedback logs written per epoch")
     parser.add_argument("--checkpoint_factor", action="store", type=int, required=False, default=10,
@@ -120,10 +137,16 @@ def main(args):
         epochs=args.epochs,
         batch_sizes=args.batch_sizes,
         fade_in_percentages=args.fade_in_percentages,
-        save_dir=args.output_dir,
+        loss_fn=args.loss_fn,
+        batch_repeats=args.batch_repeats,
+        gen_learning_rate=args.g_lrate,
+        dis_learning_rate=args.d_lrate,
+        num_samples=args.num_feedback_samples,
+        start_depth=args.start_depth,
+        num_workers=args.num_workers,
         feedback_factor=args.feedback_factor,
         checkpoint_factor=args.checkpoint_factor,
-        num_samples=args.num_feedback_samples,
+        save_dir=args.output_dir,
     )
 
 
