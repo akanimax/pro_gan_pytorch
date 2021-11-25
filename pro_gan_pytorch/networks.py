@@ -83,7 +83,7 @@ class Generator(th.nn.Module):
             ]
         )
 
-    def forward(self, x: Tensor, depth: int, alpha: float) -> Tensor:
+    def forward(self, x: Tensor, depth: int, alpha: float = 1.0) -> Tensor:
         """
         forward pass of the Generator
         Args:
