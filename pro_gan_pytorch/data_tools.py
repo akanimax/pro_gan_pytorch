@@ -54,8 +54,8 @@ class ImageDirectoryDataset(Dataset):
         self,
         data_dir: Path,
         transform: Callable[[Image.Image], Tensor] = get_transform(),
-        input_data_range: Tuple[int, int] = (0, 1),
-        output_data_range: Tuple[int, int] = (-1, 1),
+        input_data_range: Tuple[float, float] = (0.0, 1.0),
+        output_data_range: Tuple[float, float] = (-1.0, 1.0),
         rec_dir: bool = False,
     ) -> None:
         # define the state of the object

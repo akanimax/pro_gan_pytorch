@@ -1,6 +1,8 @@
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
+import torch
 
 import torch as th
 from .custom_layers import EqualizedConv2d
@@ -83,7 +85,9 @@ class Generator(th.nn.Module):
             ]
         )
 
-    def forward(self, x: Tensor, depth: int, alpha: float = 1.0) -> Tensor:
+    def forward(
+        self, x: Tensor, depth: Optional[int] = None, alpha: float = 1.0
+    ) -> Tensor:
         """
         forward pass of the Generator
         Args:
@@ -93,7 +97,7 @@ class Generator(th.nn.Module):
 
         Returns: generated images at the give depth's resolution
         """
-
+        depth = self.depth if depth is None else depth
         assert depth <= self.depth, f"Requested output depth {depth} cannot be produced"
 
         if depth == 2:
@@ -219,3 +223,19 @@ class Discriminator(th.nn.Module):
             },
             "state_dict": self.state_dict(),
         }
+
+
+def create_generator_from_saved_model(saved_model_path: Path) -> Generator:
+    # load the data from the saved_model
+    loaded_data = torch.load(saved_model_path)
+
+    # create a generator from the loaded data:
+    generator_data = (
+        loaded_data["shadow_generator"]
+        if "shadow_generator" in loaded_data
+        else loaded_data["generator"]
+    )
+    generator = Generator(**generator_data["conf"])
+    generator.load_state_dict(generator_data["state_dict"])
+
+    return generator

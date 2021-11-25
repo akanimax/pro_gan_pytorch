@@ -3,14 +3,13 @@ import argparse
 from pathlib import Path
 
 import cv2
-import numpy as np
 import torch
 from scipy.ndimage import gaussian_filter
 from torch.backends import cudnn
 from tqdm import tqdm
 
-from pro_gan_pytorch.networks import Generator
-from pro_gan_pytorch.utils import adjust_dynamic_range
+from pro_gan_pytorch.networks import create_generator_from_saved_model
+from pro_gan_pytorch.utils import post_process_generated_images
 
 # turn fast mode on
 cudnn.benchmark = True
@@ -61,17 +60,7 @@ def main(args):
 
     # load the data from the trained-model
     print(f"loading data from the trained model at: {args.model_path}")
-    loaded_data = torch.load(args.model_path)
-
-    # create a generator from the loaded data:
-    print("creating the Generator object ...")
-    generator_data = (
-        loaded_data["shadow_generator"]
-        if "shadow_generator" in loaded_data
-        else loaded_data["generator"]
-    )
-    generator = Generator(**generator_data["conf"]).to(device)
-    generator.load_state_dict(generator_data["state_dict"])
+    generator = create_generator_from_saved_model(args.model_path).to(device)
 
     # total_frames in the video:
     total_frames = int(args.time * args.fps)
@@ -99,18 +88,18 @@ def main(args):
     )
 
     # Run the main loop for the interpolation:
-    for latent in tqdm(all_latents):
-        latent = torch.unsqueeze(latent, dim=0)
+    with torch.no_grad():  # no need to compute gradients here :)
+        for latent in tqdm(all_latents):
+            latent = torch.unsqueeze(latent, dim=0)
 
-        # generate the image for this latent vector:
-        frame = generator.forward(latent, depth=generation_depth)
-        frame = frame[0].permute(1, 2, 0)
-        frame = adjust_dynamic_range(frame, drange_in=(-1, 1), drange_out=(0, 1))
-        frame = (frame * 255.0).detach().cpu().numpy().astype(np.uint8)
-        frame = frame[..., ::-1]  # need to reverse the channel order for cv2 :D
+            # generate the image for this latent vector:
+            frame = post_process_generated_images(
+                generator(latent, depth=generation_depth)
+            )
+            frame = frame[0, ..., ::-1]  # need to reverse the channel order for cv2 :D
 
-        # write the generated frame to the video
-        video_out.write(frame)
+            # write the generated frame to the video
+            video_out.write(frame)
 
     print(f"video has been generated and saved to {args.output_path}")
 

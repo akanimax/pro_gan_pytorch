@@ -13,8 +13,8 @@ from pro_gan_pytorch.losses import WganGP, StandardGAN
 
 def adjust_dynamic_range(
     data: Tensor,
-    drange_in: Optional[Tuple[int, int]] = (-1, 1),
-    drange_out: Optional[Tuple[int, int]] = (0, 1),
+    drange_in: Optional[Tuple[float, float]] = (-1.0, 1.0),
+    drange_out: Optional[Tuple[float, float]] = (0.0, 1.0),
 ):
     if drange_in != drange_out:
         scale = (np.float32(drange_out[1]) - np.float32(drange_out[0])) / (
@@ -24,6 +24,13 @@ def adjust_dynamic_range(
         data = data * scale + bias
 
     return torch.clamp(data, min=drange_out[0], max=drange_out[1])
+
+
+def post_process_generated_images(imgs: Tensor) -> np.array:
+    imgs = adjust_dynamic_range(
+        imgs.permute(0, 2, 3, 1), drange_in=(-1.0, 1.0), drange_out=(0.0, 1.0)
+    )
+    return (imgs * 255.0).detach().cpu().numpy().astype(np.uint8)
 
 
 def str2bool(v):

@@ -208,7 +208,9 @@ class ProGAN:
         if scale_factor > 1:
             samples = interpolate(samples, scale_factor=scale_factor)
 
-        samples = adjust_dynamic_range(samples)
+        samples = adjust_dynamic_range(
+            samples, drange_in=(-1.0, 1.0), drange_out=(0.0, 1.0)
+        )
 
         # save the images:
         save_image(samples, img_file, nrow=int(np.sqrt(len(samples))), padding=0)
@@ -414,7 +416,8 @@ class ProGAN:
                     # provide a loss feedback
                     if (
                         i % max(int(total_batches / max(feedback_factor, 1)), 1) == 0
-                        or i == 1 or i == total_batches
+                        or i == 1
+                        or i == total_batches
                     ):
                         elapsed = time.time() - global_time
                         elapsed = str(datetime.timedelta(seconds=elapsed))
