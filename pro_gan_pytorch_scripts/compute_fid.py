@@ -20,7 +20,8 @@ def parse_arguments() -> argparse.Namespace:
     """
     Returns: parsed arguments object
     """
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser("ProGAN fid_score computation tool",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter,)
 
     # fmt: off
     # required arguments
@@ -37,7 +38,7 @@ def parse_arguments() -> argparse.Namespace:
                              "to see the generated images yourself :).")
     parser.add_argument("--batch_size", action="store", type=int, default=4, required=False,
                         help="batch size used for generating random images")
-    parser.add_argument("--num_generated_images", action="store", type=int, default=4, required=False,
+    parser.add_argument("--num_generated_images", action="store", type=int, default=50_000, required=False,
                         help="number of generated images used for computing the FID")
     # fmt: on
 

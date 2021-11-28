@@ -5,7 +5,7 @@ with open("requirements.txt", "r") as file_:
 
 setup(
     name="pro-gan-pth",
-    version="3.3333",
+    version="3.4",
     packages=["pro_gan_pytorch", "pro_gan_pytorch_scripts"],
     url="https://github.com/akanimax/pro_gan_pytorch",
     license="MIT",

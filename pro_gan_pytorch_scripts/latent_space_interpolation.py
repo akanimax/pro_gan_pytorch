@@ -20,7 +20,8 @@ def parse_arguments():
     command line arguments parser
     :return: args => parsed command line arguments
     """
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser("ProGAN latent-space walk demo video creation tool",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter,)
 
     # fmt: off
     # required arguments
