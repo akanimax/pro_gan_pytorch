@@ -1,0 +1,3 @@
+# need to include the following files additionally for the setup.py to work
+include requirements.txt
+include scripts/*
