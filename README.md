@@ -8,7 +8,7 @@ For the official TensorFlow code, please refer to
 ![PyPi](https://img.shields.io/badge/pip--pro--gan--pth-3.4-brightgreen)
 
 # How to use:
-## Using the package
+### Using the package
 **Requirements (aka. we tested for):**
 1. **Ubuntu** `20.04.3` or above
 2. Python `3.8.3`
@@ -20,17 +20,15 @@ For the official TensorFlow code, please refer to
 1. Easiest way is to create a new virtual-env 
 so that your global python env doesn't get corrupted
 2. Create and switch to your new virtual environment
-
-
+```
     (your-machine):~$ python3 -m venv <env-store-path>/pro_gan_pth_env 
     (pro_gan_pth_env)(your-machine):~$ source <env-store-path>/pro_gan_pth_env/bin/activate
-
+```
 3. Install the `pro-gan-pth` package from pypi, if you meet 
 all the above dependencies
-
-
+```
     (pro_gan_pth_env)(your-machine):~$ pip install pro-gan-path 
-    
+```    
 4. Once installed, you can either use the installed commandline tools
 `progan_train`, `progan_lsid` and `progan_fid`.
 Note that the `progan_train` can be used with multiple gpus 
@@ -39,6 +37,7 @@ Note that the `progan_train` can be used with multiple gpus
 single GPU.
 
 
+```
     (your-machine):~$ progan_train --help
     usage: Train Progressively grown GAN [-h] [--rec_dir REC_DIR] [--flip_horizontal FLIP_HORIZONTAL] [--depth DEPTH] [--num_channels NUM_CHANNELS] [--latent_size LATENT_SIZE] [--use_eql USE_EQL]
                                      [--use_ema USE_EMA] [--ema_beta EMA_BETA] [--epochs EPOCHS [EPOCHS ...]] [--batch_sizes BATCH_SIZES [BATCH_SIZES ...]] [--batch_repeats BATCH_REPEATS]
@@ -87,7 +86,7 @@ single GPU.
       --checkpoint_factor CHECKPOINT_FACTOR
                             number of epochs after which a model snapshot is saved per training stage (default: 10)
 
-    -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     (your-machine):~$ progan_lsid --help
     usage: ProGAN latent-space walk demo video creation tool [-h] [--output_path OUTPUT_PATH] [--generation_depth GENERATION_DEPTH] [--time TIME] [--fps FPS] [--smoothing SMOOTHING] model_path
@@ -107,7 +106,7 @@ single GPU.
       --smoothing SMOOTHING
                             smoothness of walking in the latent-space. High values corresponds to more smoothing. (default: 0.75)
 
-    -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     (your-machine):~$ progan_fid --help
     usage: ProGAN fid_score computation tool [-h] [--generated_images_path GENERATED_IMAGES_PATH] [--batch_size BATCH_SIZE] [--num_generated_images NUM_GENERATED_IMAGES] model_path dataset_path
@@ -125,13 +124,13 @@ single GPU.
                             batch size used for generating random images (default: 4)
       --num_generated_images NUM_GENERATED_IMAGES
                             number of generated images used for computing the FID (default: 50000)
-
+```
+    
 5. Or, you could import this as a python package in your code 
 for more advanced use-cases:
-
-    
+``` 
     import pro_gan_pytorch as pg 
- 
+```
 You can use all the modules in the package such as: `pg.networks.Generator`, 
 `pg.networks.Discriminator`, `pg.gan.ProGAN` etc. Mostly, you'll only need 
 the `pg.gan.ProGAN` module for training. For inference, you will probably only 
@@ -140,7 +139,7 @@ in 4. under `pro_gan_pytorch_scripts/` for examples on how to use the package.
 Besides, please feel free to just read the code. It's really easy to follow
 (or at least I hope so :sweat_smile: :grimacing:).
 
-## Developing the package
+### Developing the package
 For more advanced use-cases in your project, or if you'd like to contribute new
 features to this project, the following steps would help you get this project setup 
 for developing. There are no standard set of rules for contributing here 
@@ -148,36 +147,32 @@ for developing. There are no standard set of rules for contributing here
 codebase :smile:.  
 
 1. clone this repository
-
-
+```
     (your-machine):~$ cd <path to project>
     (your-machine):<path to project>$ git clone https://github.com/akanimax/pro_gan_pytorch.git
-
+```
 2. Apologies in advance since the step 1. will take a while. I ended up 
 pushing gifs and other large binary assets to git back then. 
 I didn't know better :sad:. I'll see if this can be sorted out somehow. 
 But once done setup a development virtual env, 
-
-
+```
     (your-machine):<path to project>$ python3 -m venv pro-gan-pth-dev-env
     (your-machine):<path to project>$ source pro-gan-pth-dev-env/source/activate
-
+```
 3. Install the package in development mode:
-
-
+```
     (pro-gan-pth-dev-env)(your-machine):<path to project>$ pip install -e .
-
+```
 4. Also install the dev requirements:
-
-
+```
     (pro-gan-pth-dev-env)(your-machine):<path to project>$ pip install -r requirements-dev.txt
-
+```
 5. Now open the project in the editor of your choice, and you are good to go. 
 I use `pytest` for testing and `black` for code formatting. Check out 
 [this_link](https://black.readthedocs.io/en/stable/integrations/editors.html) for 
 how to setup `black` with various IDEs.
 
-6. There are no fancy CI, or automated testing, or docs building since this is a 
+6. There is no fancy CI, or automated testing, or docs building since this is a 
 fairly tiny project. But we are open to considering these tools if more features
 keep getting added to this project.
 
@@ -189,7 +184,8 @@ a file hosting solution for serving the trained models.
 
 | Courtesy | Dataset        | Size  |Resolution  | GPUs used   | #Epochs per stage | Training time | FID score        | Link            | Qualitative samples | 
 | :---     | :---           | :---  |:---        | :---        | :---              | :---          | :---             | :---            | :---                |
-| @owang   | Metfaces       | ~1.3K |1024 x 1024 | 1 V100-32GB | 42                | 24 hrs        | **coming soon**  | **coming soon** | ![image](https://drive.google.com/file/d/177OwIC7Bi9ILKo1WcJqLogf0ovIcC79N/view?usp=sharing)
+| @owang   | Metfaces       | ~1.3K |1024 x 1024 | 1 V100-32GB | 42                | 24 hrs        | **coming soon**  | **coming soon** | ![image](https://drive.google.com/uc?export=view&id=1loYYvM_d1uG7CKtGkJRpKTwY5CQIldxm)
+    
 
 **Note that we compute the FID using the clean_fid version from 
 [Parmar et. al.](https://www.cs.cmu.edu/~clean-fid/)**
@@ -220,6 +216,11 @@ I wrote explaining the progressive growing technique.
     2. Parmar, Gaurav, Richard Zhang, and Jun-Yan Zhu. 
     "On Buggy Resizing Libraries and Surprising Subtleties in FID Calculation." 
     arXiv preprint arXiv:2104.11222 (2021).
+
+# Feature requests
+- [ ] Unconditional GAN support
+- [ ] Tool for generating time-lapse video from the log images
+- [ ] Integrating fid-metric computation as a training-logging
 
 # Thanks
 As always, <br>
