@@ -4,14 +4,13 @@ import tempfile
 from pathlib import Path
 
 import imageio as imageio
-import numpy as np
 import torch
 from cleanfid import fid
 from torch.backends import cudnn
 from tqdm import tqdm
 
-from pro_gan_pytorch.networks import Generator, create_generator_from_saved_model
-from pro_gan_pytorch.utils import adjust_dynamic_range, post_process_generated_images
+from pro_gan_pytorch.networks import create_generator_from_saved_model
+from pro_gan_pytorch.utils import post_process_generated_images
 
 # turn fast mode on
 cudnn.benchmark = True
@@ -60,11 +59,17 @@ def main(args: argparse.Namespace) -> None:
     generator = create_generator_from_saved_model(args.model_path).to(device)
 
     # create the generated images directory:
+    if args.generated_images_path is not None:
+        args.generated_images_path.mkdir(parents=True, exist_ok=True)
     generated_images_path = (
         args.generated_images_path
         if args.generated_images_path is not None
         else tempfile.TemporaryDirectory()
     )
+    if args.generated_images_path is None:
+        image_writing_path = Path(generated_images_path.name)
+    else:
+        image_writing_path = generated_images_path
 
     print("generating random images from the trained generator ...")
     with torch.no_grad():
@@ -76,7 +81,7 @@ def main(args: argparse.Namespace) -> None:
             # write the batch of generated images:
             for batch_num, gen_img in enumerate(gen_imgs, start=1):
                 imageio.imwrite(
-                    Path(generated_images_path.name) / f"{img_num + batch_num}.png",
+                    image_writing_path / f"{img_num + batch_num}.png",
                     gen_img,
                 )
 
@@ -84,7 +89,7 @@ def main(args: argparse.Namespace) -> None:
     print("computing fid ...")
     score = fid.compute_fid(
         fdir1=args.dataset_path,
-        fdir2=Path(generated_images_path.name),
+        fdir2=image_writing_path,
         mode="clean",
         num_workers=4,
     )
