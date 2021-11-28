@@ -1,6 +1,8 @@
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
+import torch
 
 import torch as th
 from .custom_layers import EqualizedConv2d
@@ -36,7 +38,9 @@ def nf(
     """
     return int(
         np.clip(
-            int(fmap_base / (2.0 ** (stage * fmap_decay))), fmap_min, fmap_max,
+            int(fmap_base / (2.0 ** (stage * fmap_decay))),
+            fmap_min,
+            fmap_max,
         ).item()
     )
 
@@ -45,7 +49,7 @@ class Generator(th.nn.Module):
     """
     Generator Module (block) of the GAN network
     Args:
-        depth: required depth of the Network
+        depth: required depth of the Network (**starts from 2)
         num_channels: number of output channels (default = 3 for RGB)
         latent_size: size of the latent manifold
         use_eql: whether to use equalized learning rate
@@ -81,7 +85,9 @@ class Generator(th.nn.Module):
             ]
         )
 
-    def forward(self, x: Tensor, depth: int, alpha: float) -> Tensor:
+    def forward(
+        self, x: Tensor, depth: Optional[int] = None, alpha: float = 1.0
+    ) -> Tensor:
         """
         forward pass of the Generator
         Args:
@@ -91,7 +97,7 @@ class Generator(th.nn.Module):
 
         Returns: generated images at the give depth's resolution
         """
-
+        depth = self.depth if depth is None else depth
         assert depth <= self.depth, f"Requested output depth {depth} cannot be produced"
 
         if depth == 2:
@@ -162,8 +168,8 @@ class Discriminator(th.nn.Module):
                 [
                     Sequential(
                         ConvBlock(num_channels, nf(stage), kernel_size=(1, 1)),
-                        LeakyReLU(0.2)
-                        )
+                        LeakyReLU(0.2),
+                    )
                     for stage in range(1, depth)
                 ]
             )
@@ -217,3 +223,19 @@ class Discriminator(th.nn.Module):
             },
             "state_dict": self.state_dict(),
         }
+
+
+def create_generator_from_saved_model(saved_model_path: Path) -> Generator:
+    # load the data from the saved_model
+    loaded_data = torch.load(saved_model_path)
+
+    # create a generator from the loaded data:
+    generator_data = (
+        loaded_data["shadow_generator"]
+        if "shadow_generator" in loaded_data
+        else loaded_data["generator"]
+    )
+    generator = Generator(**generator_data["conf"])
+    generator.load_state_dict(generator_data["state_dict"])
+
+    return generator
