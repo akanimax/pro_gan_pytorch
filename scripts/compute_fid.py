@@ -46,11 +46,13 @@ def parse_arguments() -> argparse.Namespace:
     return args
 
 
-def main(args: argparse.Namespace) -> None:
+def compute_fid(args: argparse.Namespace) -> None:
     """
-    Main function of the script
-    :param args: parsed commandline arguments
-    :return: None
+    compute the fid for a given trained pro-gan model
+    Args:
+        args: configuration used for the fid computation
+    Returns: None
+
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -100,5 +102,13 @@ def main(args: argparse.Namespace) -> None:
         generated_images_path.cleanup()
 
 
+def main() -> None:
+    """
+    Main function of the script
+    Returns: None
+    """
+    compute_fid(parse_arguments())
+
+
 if __name__ == "__main__":
-    main(parse_arguments())
+    main()

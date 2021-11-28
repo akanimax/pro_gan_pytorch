@@ -50,11 +50,12 @@ def parse_arguments():
     return args
 
 
-def main(args):
+def latent_space_interpolation(args):
     """
-    Main function of the script
-    :param args: parsed commandline arguments
-    :return: None
+    Generate a video of the latent space walk (interpolation)
+    Args:
+        args: configuration used for the lsid
+    Returns: None (writes generated video to disk)
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -107,5 +108,13 @@ def main(args):
     video_out.release()
 
 
+def main() -> None:
+    """
+    Main function of the script
+    Returns: None
+    """
+    latent_space_interpolation(parse_arguments())
+
+
 if __name__ == "__main__":
-    main(parse_arguments())
+    main()

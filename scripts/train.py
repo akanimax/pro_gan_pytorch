@@ -4,11 +4,12 @@ import argparse
 from pathlib import Path
 
 import torch
+from torch.backends import cudnn
+
 from pro_gan_pytorch.data_tools import ImageDirectoryDataset, get_transform
 from pro_gan_pytorch.gan import ProGAN
 from pro_gan_pytorch.networks import Discriminator, Generator
 from pro_gan_pytorch.utils import str2bool, str2GANLoss
-from torch.backends import cudnn
 
 # turn fast mode on
 cudnn.benchmark = True
@@ -17,10 +18,10 @@ cudnn.benchmark = True
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
     """
     command line arguments parser
-    :return: args => parsed command line arguments
+    Returns: args => parsed command line arguments
     """
     parser = argparse.ArgumentParser(
         "Train Progressively grown GAN",
@@ -66,7 +67,7 @@ def parse_arguments():
                         help="number of G and D steps executed per training iteration")
     parser.add_argument("--fade_in_percentages", action="store", type=int, required=False, nargs="+",
                         default=[50 for _ in range(9)],
-                        help="number of iterations for which fading of new layer happens. Measured in %")
+                        help="number of iterations for which fading of new layer happens. Measured in percentage")
     parser.add_argument("--loss_fn", action="store", type=str2GANLoss, required=False, default="wgan_gp",
                         help="loss function used for training the GAN. "
                              "Current options: [wgan_gp, standard_gan]")
@@ -81,7 +82,7 @@ def parse_arguments():
                              "Example 2 --> (4x4) | 3 --> (8x8) ... | 10 --> (1024x1024)"
                              "Note that this is not a way to restart a partial training. "
                              "Resuming is not supported currently. But will be soon.")
-    parser.add_argument("--num_workers", action="store", type=int, required=False, default=3,
+    parser.add_argument("--num_workers", action="store", type=int, required=False, default=4,
                         help="number of dataloader subprocesses. It's a pytorch thing, you can ignore it ;)."
                              " Leave it to the default value unless things are weirdly slow for you.")
     parser.add_argument("--feedback_factor", action="store", type=int, required=False, default=10,
@@ -90,16 +91,15 @@ def parse_arguments():
                         help="number of epochs after which a model snapshot is saved per training stage")
     # fmt: on
 
-    args = parser.parse_args()
-    return args
+    parsed_args = parser.parse_args()
+    return parsed_args
 
 
-def main(args):
+def train_progan(args: argparse.Namespace) -> None:
     """
-    Main function of the script
+    method to train the progan (progressively grown gan) given the configuration parameters
     Args:
-        args: parsed commandline arguments
-
+        args: configuration used for the training
     Returns: None
     """
     print(f"Selected arguments: {args}")
@@ -150,5 +150,13 @@ def main(args):
     )
 
 
+def main() -> None:
+    """
+    Main function of the script
+    Returns: None
+    """
+    train_progan(parse_arguments())
+
+
 if __name__ == "__main__":
-    main(parse_arguments())
+    main()
