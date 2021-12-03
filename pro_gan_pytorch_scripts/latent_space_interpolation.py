@@ -36,7 +36,7 @@ def parse_arguments():
                              "I have banged my head too much to get anything else to work :(.")
     parser.add_argument("--generation_depth", action="store", type=int, default=None, required=False,
                         help="depth at which the images should be generated. "
-                             "Starts from 2 --> (4x4) | 3 --> (8x8) etc.")
+                             "Starts from 2 --> (4x4) | 3 --> (8x8) etc. Uses the highest resolution by default. ")
     parser.add_argument("--time", action="store", type=float, default=30, required=False,
                         help="number of seconds in the video")
     parser.add_argument("--fps", action="store", type=int, default=60, required=False,

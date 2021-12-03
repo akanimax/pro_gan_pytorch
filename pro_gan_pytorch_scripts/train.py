@@ -37,16 +37,17 @@ def parse_arguments() -> argparse.Namespace:
 
     # Optional arguments
     # dataset related options:
-    parser.add_argument("--rec_dir", action="store", type=str2bool, default=True, required=False,
-                        help="whether images stored under one folder or has a recursive dir structure")
+    parser.add_argument("--rec_dir", action="store", type=str2bool, default=False, required=False,
+                        help="whether images are stored under one folder or under a recursive dir structure")
     parser.add_argument("--flip_horizontal", action="store", type=str2bool, default=True, required=False,
-                        help="whether to apply mirror augmentation")
+                        help="whether to apply mirror (horizontal) augmentation")
 
     # model architecture related options:
     parser.add_argument("--depth", action="store", type=int, default=10, required=False,
-                        help="depth of the generator and the discriminator")
+                        help="depth of the generator and the discriminator. Starts from 2. "
+                             "Example 2 --> (4x4) | 3 --> (8x8) ... | 10 --> (1024x1024)")
     parser.add_argument("--num_channels", action="store", type=int, default=3, required=False,
-                        help="number of channels of in the image data")
+                        help="number of channels in the image data")
     parser.add_argument("--latent_size", action="store", type=int, default=512, required=False,
                         help="latent size of the generator and the discriminator")
 
@@ -54,7 +55,9 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--use_eql", action="store", type=str2bool, default=True, required=False,
                         help="whether to use the equalized learning rate")
     parser.add_argument("--use_ema", action="store", type=str2bool, default=True, required=False,
-                        help="whether to use the exponential moving averages")
+                        help="whether to use the exponential moving average of generator weights. "
+                             "Keeps two copies of the generator model; an instantaneous one and "
+                             "the averaged one.")
     parser.add_argument("--ema_beta", action="store", type=float, default=0.999, required=False,
                         help="value of the ema beta")
     parser.add_argument("--epochs", action="store", type=int, required=False, nargs="+",
@@ -79,9 +82,9 @@ def parse_arguments() -> argparse.Namespace:
                         help="number of samples used for fixed seed gan feedback")
     parser.add_argument("--start_depth", action="store", type=int, required=False, default=2,
                         help="resolution to start the training from. "
-                             "Example 2 --> (4x4) | 3 --> (8x8) ... | 10 --> (1024x1024)"
+                             "Example 2 --> (4x4) | 3 --> (8x8) ... | 10 --> (1024x1024). "
                              "Note that this is not a way to restart a partial training. "
-                             "Resuming is not supported currently. But will be soon.")
+                             "Resuming is not supported currently. But will soon be.")
     parser.add_argument("--num_workers", action="store", type=int, required=False, default=4,
                         help="number of dataloader subprocesses. It's a pytorch thing, you can ignore it ;)."
                              " Leave it to the default value unless things are weirdly slow for you.")

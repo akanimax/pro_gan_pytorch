@@ -108,3 +108,6 @@ venv.bak/
 
 # ignore the virtual environment for the project as well
 pro_gan_pytorch_env/
+
+# ignore the test_train folder created by one of the tests:
+./test_train

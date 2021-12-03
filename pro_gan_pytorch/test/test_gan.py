@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# noinspection PyPackageRequirements
 import matplotlib.pyplot as plt
 
 import torch
@@ -36,18 +37,18 @@ def test_pro_gan_progressive_downsample_batch() -> None:
     plt.show()
 
 
-def test_pro_gan_train() -> None:
+def test_pro_gan_train(test_data_path: Path) -> None:
     depth = 4
     progan = ProGAN(Generator(depth), Discriminator(depth), device=device)
     progan.train(
         dataset=ImageDirectoryDataset(
-            Path("/media/deepstorage01/datasets_external/cifar_10/cifar/images"),
+            test_data_path,
             transform=get_transform(
                 new_size=(int(2 ** depth), int(2 ** depth)), flip_horizontal=False
             ),
             rec_dir=False,
         ),
-        epochs=[100 for _ in range(3)],
+        epochs=[10 for _ in range(3)],
         batch_sizes=[256, 256, 256],
         fade_in_percentages=[50 for _ in range(3)],
         save_dir=Path("./test_train"),
