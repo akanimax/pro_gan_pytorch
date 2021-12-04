@@ -184,7 +184,7 @@ a file hosting solution for serving the trained models.
 
 | Courtesy | Dataset        | Size  |Resolution  | GPUs used   | #Epochs per stage | Training time | FID score        | Link            | Qualitative samples | 
 | :---     | :---           | :---  |:---        | :---        | :---              | :---          | :---             | :---            | :---                |
-| @owang   | Metfaces       | ~1.3K |1024 x 1024 | 1 V100-32GB | 42                | 24 hrs        | **coming soon**  | **coming soon** | ![image](https://drive.google.com/uc?export=view&id=1loYYvM_d1uG7CKtGkJRpKTwY5CQIldxm)
+| @owang   | Metfaces       | ~1.3K |1024 x 1024 | 1 V100-32GB | 42                | 24 hrs        | 101.624          | [model_link](http://geometry.cs.ucl.ac.uk/projects/2021/pro_gan_pytorch/model_metfaces.bin) | ![image](https://drive.google.com/uc?export=view&id=1loYYvM_d1uG7CKtGkJRpKTwY5CQIldxm)
     
 
 **Note that we compute the FID using the clean_fid version from 
