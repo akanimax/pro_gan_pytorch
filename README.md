@@ -27,7 +27,7 @@ so that your global python env doesn't get corrupted
 3. Install the `pro-gan-pth` package from pypi, if you meet 
 all the above dependencies
 ```
-    (pro_gan_pth_env)(your-machine):~$ pip install pro-gan-path 
+    (pro_gan_pth_env)(your-machine):~$ pip install pro-gan-pth 
 ```    
 4. Once installed, you can either use the installed commandline tools
 `progan_train`, `progan_lsid` and `progan_fid`.
