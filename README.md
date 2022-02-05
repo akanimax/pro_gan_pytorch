@@ -218,7 +218,7 @@ I wrote explaining the progressive growing technique.
     arXiv preprint arXiv:2104.11222 (2021).
 
 # Feature requests
-- [ ] Unconditional GAN support
+- [ ] Conditional GAN support
 - [ ] Tool for generating time-lapse video from the log images
 - [ ] Integrating fid-metric computation as a training-logging
 
