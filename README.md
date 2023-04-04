@@ -39,12 +39,33 @@ single GPU.
 
 ```
     (your-machine):~$ progan_train --help
-    usage: Train Progressively grown GAN [-h] [--rec_dir REC_DIR] [--flip_horizontal FLIP_HORIZONTAL] [--depth DEPTH] [--num_channels NUM_CHANNELS] [--latent_size LATENT_SIZE] [--use_eql USE_EQL]
-                                     [--use_ema USE_EMA] [--ema_beta EMA_BETA] [--epochs EPOCHS [EPOCHS ...]] [--batch_sizes BATCH_SIZES [BATCH_SIZES ...]] [--batch_repeats BATCH_REPEATS]
-                                     [--fade_in_percentages FADE_IN_PERCENTAGES [FADE_IN_PERCENTAGES ...]] [--loss_fn LOSS_FN] [--g_lrate G_LRATE] [--d_lrate D_LRATE]
-                                     [--num_feedback_samples NUM_FEEDBACK_SAMPLES] [--start_depth START_DEPTH] [--num_workers NUM_WORKERS] [--feedback_factor FEEDBACK_FACTOR]
-                                     [--checkpoint_factor CHECKPOINT_FACTOR]
-                                     train_path output_dir
+usage: Train Progressively grown GAN
+       [-h]
+       [--retrain RETRAIN]
+       [--generator_path GENERATOR_PATH]
+       [--discriminator_path DISCRIMINATOR_PATH]
+       [--rec_dir REC_DIR]
+       [--flip_horizontal FLIP_HORIZONTAL]
+       [--depth DEPTH]
+       [--num_channels NUM_CHANNELS]
+       [--latent_size LATENT_SIZE]
+       [--use_eql USE_EQL]
+       [--use_ema USE_EMA]
+       [--ema_beta EMA_BETA]
+       [--epochs EPOCHS [EPOCHS ...]]
+       [--batch_sizes BATCH_SIZES [BATCH_SIZES ...]]
+       [--batch_repeats BATCH_REPEATS]
+       [--fade_in_percentages FADE_IN_PERCENTAGES [FADE_IN_PERCENTAGES ...]]
+       [--loss_fn LOSS_FN]
+       [--g_lrate G_LRATE]
+       [--d_lrate D_LRATE]
+       [--num_feedback_samples NUM_FEEDBACK_SAMPLES]
+       [--start_depth START_DEPTH]
+       [--num_workers NUM_WORKERS]
+       [--feedback_factor FEEDBACK_FACTOR]
+       [--checkpoint_factor CHECKPOINT_FACTOR]
+       train_path
+       output_dir
 
     positional arguments:
       train_path            Path to the images folder for training the ProGAN
@@ -52,6 +73,11 @@ single GPU.
 
     optional arguments:
       -h, --help            show this help message and exit
+      --retrain RETRAIN     whenever you want to resume training from saved models (default: False)
+      --generator_path GENERATOR_PATH
+                            Path to the generator model for retraining the ProGAN (default: None)
+      --discriminator_path DISCRIMINATOR_PATH 
+                            Path to the discriminat or model for retraining the ProGAN (default: None)
       --rec_dir REC_DIR     whether images stored under one folder or has a recursive dir structure (default: True)
       --flip_horizontal FLIP_HORIZONTAL
                             whether to apply mirror augmentation (default: True)

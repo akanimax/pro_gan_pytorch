@@ -36,6 +36,13 @@ def parse_arguments() -> argparse.Namespace:
                         help="Path to the directory for saving the logs and models")
 
     # Optional arguments
+    # for retraining a model options:
+    parser.add_argument("--retrain", action="store", type=str2bool, default=False, required=False,
+                        help="whenever you want to resume training from saved models")
+    parser.add_argument("--generator_path", action="store", type=Path, required="--retrain" in sys.argv,
+                        help="Path to the generator model for retraining the ProGAN")
+    parser.add_argument("--discriminator_path", action="store", type=Path, required="--retrain" in sys.argv,
+                        help="Path to the discriminator model for retraining the ProGAN")
     # dataset related options:
     parser.add_argument("--rec_dir", action="store", type=str2bool, default=False, required=False,
                         help="whether images are stored under one folder or under a recursive dir structure")
@@ -107,18 +114,27 @@ def train_progan(args: argparse.Namespace) -> None:
     """
     print(f"Selected arguments: {args}")
 
-    generator = Generator(
-        depth=args.depth,
-        num_channels=args.num_channels,
-        latent_size=args.latent_size,
-        use_eql=args.use_eql,
-    )
-    discriminator = Discriminator(
-        depth=args.depth,
-        num_channels=args.num_channels,
-        latent_size=args.latent_size,
-        use_eql=args.use_eql,
-    )
+    if args.retrain:
+        print(f"Retraining the ProGAN: `depth`, `num_channels`, `latent_size`, `use_eql` parameters will be ignored if "
+              f"specified.")
+        generator, discriminator = load_models(args.generator_path, args.discriminator_path)
+        args.depth = generator.depth
+        args.num_channels = generator.num_channels
+        args.latent_size = generator.latent_size
+        args.use_eql = generator.use_eql
+    else:
+        generator = Generator(
+            depth=args.depth,
+            num_channels=args.num_channels,
+            latent_size=args.latent_size,
+            use_eql=args.use_eql,
+        )
+        discriminator = Discriminator(
+            depth=args.depth,
+            num_channels=args.num_channels,
+            latent_size=args.latent_size,
+            use_eql=args.use_eql,
+        )
 
     progan = ProGAN(
         generator,
