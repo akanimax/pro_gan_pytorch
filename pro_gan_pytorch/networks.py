@@ -239,3 +239,23 @@ def create_generator_from_saved_model(saved_model_path: Path) -> Generator:
     generator.load_state_dict(generator_data["state_dict"])
 
     return generator
+
+
+def create_discriminator_from_saved_model(saved_model_path: Path) -> Discriminator:
+    # load the data from the saved_model
+    loaded_data = torch.load(saved_model_path)
+
+    # create a discriminator from the loaded data:
+    discriminator_data = (
+        loaded_data.get("shadow_discriminator", loaded_data["discriminator"])
+    )
+    discriminator = Discriminator(**discriminator_data["conf"])
+    discriminator.load_state_dict(discriminator_data["state_dict"])
+
+    return discriminator
+
+
+def load_models(generator_path: Path, discriminator_path: Path) -> Tuple[Generator, Discriminator]:
+    generator = create_generator_from_saved_model(generator_path)
+    discriminator = create_discriminator_from_saved_model(discriminator_path)
+    return generator, discriminator
